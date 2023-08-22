@@ -80,13 +80,13 @@ def gen_filtered_rates_dict(tp_mass_rates_dict, rate_threshold, ch_rate_threshol
 
         if keys != 0:
 
-            filter_mass_rates_dict[keys] = []
-
             if len(values) > 0:
 
                 ch_rate_threshold_flag = False
 
                 while not ch_rate_threshold_flag:
+
+                    filter_mass_rates_dict[keys] = []
 
                     for mass_rate_tp in values:
 
@@ -98,6 +98,10 @@ def gen_filtered_rates_dict(tp_mass_rates_dict, rate_threshold, ch_rate_threshol
                         rate_threshold = rate_threshold * (1+ch_rate_threshold)
                     else:
                         ch_rate_threshold_flag = True
+
+            else:
+                
+                filter_mass_rates_dict[keys] = []
 
     return filter_mass_rates_dict
 
