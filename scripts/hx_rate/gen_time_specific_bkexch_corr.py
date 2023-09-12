@@ -72,6 +72,40 @@ def gen_list_of_tp_diff_rates(list_of_mass_rate_proteins):
     return tp_mass_rates_dict
 
 
+# def gen_filtered_rates_dict(tp_mass_rates_dict, rate_threshold, ch_rate_threshold, min_number_points):
+
+#     filter_mass_rates_dict = OrderedDict()
+
+#     for keys, values in tp_mass_rates_dict.items():
+
+#         if keys != 0:
+
+#             if len(values) > 0:
+
+#                 ch_rate_threshold_flag = False
+
+#                 while not ch_rate_threshold_flag:
+
+#                     filter_mass_rates_dict[keys] = []
+
+#                     for mass_rate_tp in values:
+
+#                         abs_mass_rate_value = abs(mass_rate_tp.mass_rate_value)
+#                         if abs_mass_rate_value <= rate_threshold:
+#                             filter_mass_rates_dict[keys].append(mass_rate_tp)
+
+#                     if len(filter_mass_rates_dict[keys]) < min_number_points:
+#                         rate_threshold = rate_threshold * (1+ch_rate_threshold)
+#                     else:
+#                         ch_rate_threshold_flag = True
+
+#             else:
+                
+#                 filter_mass_rates_dict[keys] = []
+
+#     return filter_mass_rates_dict
+
+
 def gen_filtered_rates_dict(tp_mass_rates_dict, rate_threshold, ch_rate_threshold, min_number_points):
 
     filter_mass_rates_dict = OrderedDict()
@@ -80,28 +114,18 @@ def gen_filtered_rates_dict(tp_mass_rates_dict, rate_threshold, ch_rate_threshol
 
         if keys != 0:
 
+            filter_mass_rates_dict[keys] = []
+
             if len(values) > 0:
 
-                ch_rate_threshold_flag = False
+                for mass_rate_tp in values:
 
-                while not ch_rate_threshold_flag:
+                    abs_mass_rate_value = abs(mass_rate_tp.mass_rate_value)
+                    if abs_mass_rate_value <= rate_threshold:
+                        filter_mass_rates_dict[keys].append(mass_rate_tp)
 
+                if len(filter_mass_rates_dict[keys]) < min_number_points:
                     filter_mass_rates_dict[keys] = []
-
-                    for mass_rate_tp in values:
-
-                        abs_mass_rate_value = abs(mass_rate_tp.mass_rate_value)
-                        if abs_mass_rate_value <= rate_threshold:
-                            filter_mass_rates_dict[keys].append(mass_rate_tp)
-
-                    if len(filter_mass_rates_dict[keys]) < min_number_points:
-                        rate_threshold = rate_threshold * (1+ch_rate_threshold)
-                    else:
-                        ch_rate_threshold_flag = True
-
-            else:
-                
-                filter_mass_rates_dict[keys] = []
 
     return filter_mass_rates_dict
 
