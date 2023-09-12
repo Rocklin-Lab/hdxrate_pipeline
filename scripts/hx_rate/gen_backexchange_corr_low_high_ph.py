@@ -80,7 +80,21 @@ def plot_backexchange_correlation(low_ph_corr_bkexch,
     plt.close()
 
 
-def check_for_exchange_saturation(centroid_list, mass_rate_threshold=0.03):
+# def check_for_exchange_saturation(centroid_list, mass_rate_threshold=0.03):
+#     """
+
+#     :param dist_list:
+#     :param mass_rate_threshold:
+#     :return:
+#     """
+
+#     mass_rate = abs((centroid_list[1] - centroid_list[0])/centroid_list[0])
+#     if mass_rate > mass_rate_threshold:
+#         return False
+#     else:
+#         return True
+
+def check_for_exchange_saturation(centroid_list, mass_rate_threshold=1):
     """
 
     :param dist_list:
@@ -88,7 +102,7 @@ def check_for_exchange_saturation(centroid_list, mass_rate_threshold=0.03):
     :return:
     """
 
-    mass_rate = abs((centroid_list[1] - centroid_list[0])/centroid_list[0])
+    mass_rate = abs(centroid_list[1] - centroid_list[0])
     if mass_rate > mass_rate_threshold:
         return False
     else:
