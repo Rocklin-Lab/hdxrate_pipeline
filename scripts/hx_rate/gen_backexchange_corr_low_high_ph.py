@@ -436,7 +436,7 @@ def gen_low_high_ph_bkexchange_from_file_list(list_of_low_ph_hxms_files: list,
                                                                  d2o_fraction=low_ph_d2o_frac,
                                                                  d2o_purity=low_ph_d2o_pur,
                                                                  mass_rate_threshold=saturation_mass_rate_threshold,
-                                                                 dist_indices=[-1, -3],
+                                                                 dist_indices=[-1, -5],
                                                                  bkexch_corr_fpath=lowph_backexchange_correction_filepath)
 
     high_ph_bkexch_satur = gen_list_of_bkexch_and_saturation_bool(filepath_list=list_of_high_ph_hxms_files,
@@ -444,7 +444,7 @@ def gen_low_high_ph_bkexchange_from_file_list(list_of_low_ph_hxms_files: list,
                                                                   d2o_fraction=high_ph_d2o_frac,
                                                                   d2o_purity=high_ph_d2o_pur,
                                                                   mass_rate_threshold=saturation_mass_rate_threshold,
-                                                                  dist_indices=[-1, -3],
+                                                                  dist_indices=[-1, -5],
                                                                   bkexch_corr_fpath=highph_backexchange_correction_filepath)
 
     check_saturation_bool = []
