@@ -151,7 +151,7 @@ def gen_correction_array(filtered_tp_mass_rates_dict, replace_nan_with_mean=True
     sort_index = np.argsort(timepoints_arr)
 
     if replace_nan_with_mean:
-        avg_mass_rate_arr[np.isnan(avg_mass_rate_arr)] = np.mean(avg_mass_rate_arr[1:-1])
+        avg_mass_rate_arr[np.isnan(avg_mass_rate_arr)] = np.nanmean(avg_mass_rate_arr[1:-1])
 
     return timepoints_arr[sort_index], avg_mass_rate_arr[sort_index]
 
