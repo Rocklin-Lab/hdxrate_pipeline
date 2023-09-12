@@ -130,7 +130,7 @@ def gen_filtered_rates_dict(tp_mass_rates_dict, rate_threshold, ch_rate_threshol
     return filter_mass_rates_dict
 
 
-def gen_correction_array(filtered_tp_mass_rates_dict):
+def gen_correction_array(filtered_tp_mass_rates_dict, replace_nan_with_mean=True):
 
     timepoint_list = []
     avg_mass_rate_list = []
@@ -149,6 +149,9 @@ def gen_correction_array(filtered_tp_mass_rates_dict):
     avg_mass_rate_arr = np.array(avg_mass_rate_list)
 
     sort_index = np.argsort(timepoints_arr)
+
+    if replace_nan_with_mean:
+        avg_mass_rate_arr[np.isnan(avg_mass_rate_arr)] = np.mean(avg_mass_rate_arr[1:-1])
 
     return timepoints_arr[sort_index], avg_mass_rate_arr[sort_index]
 
