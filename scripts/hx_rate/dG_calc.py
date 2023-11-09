@@ -7,6 +7,8 @@ def dg_calc_from_file(hxrate_pickle_fpath: str,
                       ph: float,
                       netcharge_corr: bool = True,
                       min_fe_val: float = -2.0,
+                      d2o_purity: float,
+                      d2o_fraction: float,
                       output_picklepath: str = None,
                       dg_csv_fpath: str = None,
                       dg_plot_fpath: str = None,
@@ -34,7 +36,9 @@ def dg_calc_from_file(hxrate_pickle_fpath: str,
                         temp=temp,
                         ph=ph,
                         netcharge_corr=netcharge_corr,
-                        min_fe_val=min_fe_val)
+                        min_fe_val=min_fe_val,
+                       d2o_purity=d2o_purity,
+                       d2o_fraction=d2o_fraction)
 
     # save attributes here
 
@@ -66,6 +70,9 @@ def gen_parser_args():
     parser_.add_argument('-opk', '--output_pickle', type=str, help='dg output .pickle file path')
     parser_.add_argument('-oc', '--output_csv', type=str, help='dg output .csv file path')
     parser_.add_argument('-opd', '--output_pdf', type=str, help='dg output plot .pdf file path')
+    parser_.add_argument('-dp', '--d2o_purity', type=float, help='d2o fraction on buffer solution')
+    parser_.add_argument('-df', '--d2o_fraction', type=float, help='d2o buffer fraction when mixed with protein')
+
 
     return parser_
 
@@ -81,6 +88,8 @@ def run_from_parser():
                       ph=options.ph,
                       netcharge_corr=options.netcharge,
                       min_fe_val=options.minfe,
+                      d2o_purity=options.d2o_purity,
+                      d2o_fraction=options.d2o_fraction,
                       output_picklepath=options.output_pickle,
                       dg_csv_fpath=options.output_csv,
                       dg_plot_fpath=options.output_pdf,
