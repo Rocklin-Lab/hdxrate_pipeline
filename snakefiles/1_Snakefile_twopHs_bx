@@ -1,0 +1,337 @@
+import pandas as pd
+import glob
+import numpy as np
+
+# set the config file path
+configfile: 'config.yml'
+
+## FUNCTIONS
+
+def gen_prot_name_seq_list(hxms_dist_top_dir,
+                           hdxlim_dir_struct,
+                           hdxlim_pathtype_str,
+                           hxms_end_string,
+                           levels_to_fpaths,
+                           libinfo_fpath,
+                           protein_rt_column_name='name_rt-group',
+                           protein_list_hq=None):
+
+
+    print("prot_list_hq", protein_list_hq)
+    print("libinfo_fpath", libinfo_fpath)
+    print(hxms_dist_top_dir, hdxlim_dir_struct, hdxlim_pathtype_str, hxms_end_string, levels_to_fpaths)
+
+    libinfo_df = pd.read_json(libinfo_fpath)
+
+    if "name_rt-group" not in list(libinfo_df.keys()): libinfo_df["name_rt-group"] = libinfo_df["name"]
+
+    if hdxlim_dir_struct:
+        hx_ms_dist_file_list = glob.glob(hxms_dist_top_dir + '/*/'+hdxlim_pathtype_str+'/*'+hxms_end_string)
+    else:
+        hx_ms_dist_file_list = glob.glob(hxms_dist_top_dir+'/*'*levels_to_fpaths+hxms_end_string)
+
+
+    print("AF", hx_ms_dist_file_list)
+
+    name_list = []
+    name_seq_dict_ = dict()
+
+    for ind, hx_ms_dist_fpath in enumerate(hx_ms_dist_file_list):
+
+        # check whether the file is empty or not
+        if os.stat(hx_ms_dist_fpath).st_size > 0:
+            hxms_df = pd.read_csv(hx_ms_dist_fpath)
+
+            # check whether the data frame is empty or not
+            if not hxms_df.empty:
+
+                dpath, hx_ms_dist_fname = os.path.split(hx_ms_dist_fpath)
+
+                prot_name = hx_ms_dist_fname.strip(hxms_end_string)
+
+                if protein_list_hq is not None:
+                    if prot_name not in protein_list_hq: continue
+
+                if prot_name in libinfo_df[protein_rt_column_name].values:
+
+                    name_list.append(prot_name)
+                    prot_seq = libinfo_df[libinfo_df[protein_rt_column_name] == prot_name]['sequence'].values[0]
+                    name_seq_dict_[prot_name] = prot_seq
+
+    return name_list, name_seq_dict_
+
+
+def hxms_file_path_gen_with_wildcard(hxms_fpath_dir,
+                                     levels_to_fpaths=1,
+                                     hxms_file_end_str='_winner.cpickle.zlib.csv',
+                                     wildcard_container=True,
+                                     wildcard_='lowph_name_all',
+                                     hxms_distruct=False,
+                                     hxms_pathtype_str='Monobody'):
+
+    if wildcard_container:
+        wildcard_str = '{' + wildcard_ + '}'
+    else:
+        wildcard_str = wildcard_
+
+    fpath_gen = hxms_fpath_dir + ('/' + wildcard_str) * levels_to_fpaths + hxms_file_end_str
+
+    if hxms_distruct:
+        fpath_gen = hxms_fpath_dir + '/' + wildcard_str + '/' + hxms_pathtype_str + '/' + wildcard_str + hxms_file_end_str
+
+    return fpath_gen
+
+# gen matching protein ids
+def gen_match_protein_ids(low_ph_libinfo_fpath,
+                          lowph_protein_rt_column_name,
+                          high_ph_libinfo_fpath,
+                          highph_protein_rt_column_name,
+                          low_ph_hxms_dir,
+                          low_ph_level_to_fpaths,
+                          low_ph_hxms_end_string,
+                          lowph_hdxlim_dir_struct,
+                          lowph_hdxlim_pathtype_str,
+                          high_ph_hxms_dir,
+                          high_ph_level_to_fpaths,
+                          high_ph_hxms_end_string,
+                          highph_hdxlim_dir_struct,
+                          highph_hdxlim_pathtype_str,
+                          rt_window,
+                          protein_list_hq_ph6=None,
+                          protein_list_hq_ph9=None):
+
+    low_ph_libinfo_df = pd.read_json(low_ph_libinfo_fpath)
+    high_ph_libinfo_df = pd.read_json(high_ph_libinfo_fpath)
+
+    if "name_rt-group" not in low_ph_libinfo_df.keys(): low_ph_libinfo_df["name_rt-group"] = low_ph_libinfo_df["name"]
+    if "name_rt-group" not in high_ph_libinfo_df.keys(): high_ph_libinfo_df["name_rt-group"] = high_ph_libinfo_df["name"]
+
+    # generate matching protein names from the library info first
+    low_ph_name_rt_arr = np.unique(low_ph_libinfo_df[lowph_protein_rt_column_name].values)
+    high_ph_name_rt_arr = np.unique(high_ph_libinfo_df[highph_protein_rt_column_name].values)
+
+    if protein_list_hq_ph6 is not None: low_ph_name_rt_arr = [prot for prot in low_ph_name_rt_arr if prot in protein_list_hq_ph6]
+    if protein_list_hq_ph9 is not None: high_ph_name_rt_arr = [prot for prot in high_ph_name_rt_arr if prot in protein_list_hq_ph9]
+
+    low_ph_name_list = ['_'.join(x.split('_')[:-1]) for x in low_ph_name_rt_arr]
+    high_ph_name_list =  ['_'.join(x.split('_')[:-1]) for x in high_ph_name_rt_arr]
+
+    low_ph_name = []
+    high_ph_name = []
+    low_high_name = []
+    sequence_list = []
+    low_high_name_seq_dict_ = dict()
+    low_name_dict = dict()
+    high_name_dict = dict()
+    low_high_name_prot_name_dict = dict()
+    low_high_name_low_ph_fpath = dict()
+    lowh_high_name_high_ph_fpath = dict()
+
+    counter = 0
+
+    for ind, low_ph_name_ in enumerate(low_ph_name_list):
+
+        # print('searching match for {}'.format(low_ph_name_))
+
+        low_ph_rt_name = low_ph_name_rt_arr[ind]
+        low_ph_rt = float(low_ph_rt_name.split('_')[-1])
+        high_ph_rt_name_matches = [high_ph_name_rt_arr[ind2] for ind2, x in enumerate(high_ph_name_list) if x == low_ph_name_]
+
+        if len(high_ph_rt_name_matches) > 0:
+
+            # print('found match for {}, # of matches = {}'.format(low_ph_name_, len(high_ph_rt_name_matches)))
+
+            for high_ph_rt_name in high_ph_rt_name_matches:
+
+                high_ph_rt = float(high_ph_rt_name.split('_')[-1])
+
+                if abs(high_ph_rt - low_ph_rt) <= rt_window:
+
+                    # print('rt window passed for {}'.format(low_ph_name_))
+
+                    low_ph_fpath, low_ph_fpath_valid = check_hxdist_fpath(hxms_dir=low_ph_hxms_dir,
+                        hdxlim_dir_struct=lowph_hdxlim_dir_struct,
+                        hdxlim_pathtype_str=lowph_hdxlim_pathtype_str,
+                        level_to_fpaths=low_ph_level_to_fpaths,
+                        prot_rt_name=low_ph_rt_name,
+                        file_end_string=low_ph_hxms_end_string)
+
+                    high_ph_fpath, high_ph_fpath_valid = check_hxdist_fpath(hxms_dir=high_ph_hxms_dir,
+                        hdxlim_dir_struct=highph_hdxlim_dir_struct,
+                        hdxlim_pathtype_str=highph_hdxlim_pathtype_str,
+                        level_to_fpaths=high_ph_level_to_fpaths,
+                        prot_rt_name=high_ph_rt_name,
+                        file_end_string=high_ph_hxms_end_string)
+
+                    # print('low ph fpath generated: {}'.format(low_ph_fpath))
+                    # print('high ph fpath generated: {}'.format(high_ph_fpath))
+
+                    if low_ph_fpath_valid:
+                        # print('low ph path valid!')
+                        if high_ph_fpath_valid:
+                            # print('high ph path valid:')
+                            counter += 1
+
+                            prot_seq = low_ph_libinfo_df[low_ph_libinfo_df[lowph_protein_rt_column_name] == low_ph_rt_name]['sequence'].values[0]
+                            sequence_list.append(prot_seq)
+                            low_ph_name.append(low_ph_rt_name)
+                            high_ph_name.append(high_ph_rt_name)
+                            low_high_name_string = low_ph_rt_name + '_' + high_ph_rt_name
+                            low_high_name.append(low_high_name_string)
+                            low_high_name_seq_dict_[low_high_name_string] = prot_seq
+                            low_name_dict[low_high_name_string] = low_ph_rt_name
+                            high_name_dict[low_high_name_string] = high_ph_rt_name
+                            prot_name_ = gen_prot_name_from_rt_name(rt_name=low_ph_rt_name)
+                            low_high_name_prot_name_dict[low_high_name_string] = prot_name_
+                            low_high_name_low_ph_fpath[low_high_name_string] = low_ph_fpath
+                            lowh_high_name_high_ph_fpath[low_high_name_string] = high_ph_fpath
+
+
+    return low_ph_name, high_ph_name, sequence_list, low_high_name, low_high_name_seq_dict_, low_name_dict, high_name_dict, low_high_name_prot_name_dict, low_high_name_low_ph_fpath, lowh_high_name_high_ph_fpath
+
+def check_hxdist_fpath(hxms_dir,
+                       hdxlim_dir_struct,
+                       hdxlim_pathtype_str,
+                       level_to_fpaths,
+                       prot_rt_name,
+                       file_end_string):
+
+    file_valid = False
+
+    if hdxlim_dir_struct:
+        hx_fpath = hxms_dir + '/' + prot_rt_name + '/' + hdxlim_pathtype_str + '/' + prot_rt_name + file_end_string
+    else:
+        hx_fpath = hxms_dir + ('/' + prot_rt_name) * level_to_fpaths + file_end_string
+
+    # check if fpath exists
+    if os.path.exists(hx_fpath):
+        # check if the file size is greater than 0
+        if os.stat(hx_fpath).st_size > 0:
+            hx_df = pd.read_csv(hx_fpath)
+            # check if the file is empty
+            if not hx_df.empty:
+                file_valid = True
+
+    return hx_fpath, file_valid
+
+def gen_prot_name_from_rt_name(rt_name):
+    prot_name_chars = rt_name.split('_')
+    del prot_name_chars[-1]
+    prot_name = '_'.join(x for x in prot_name_chars)
+    # if prot_name.endswith('.pdb'):
+    #     prot_name = prot_name.strip('.pdb')
+    return prot_name
+
+
+
+benchmark_dpath = config['output_dirpath'] + '/benchmark'
+scripts_dirpath = config['path_to_repo'] + '/scripts/hx_rate'
+backexchange_output_path = config['output_dirpath'] + '/backexchange'
+
+# Load filtered data if any:
+names_ph6_, names_ph9_ = None, None
+if config["path_to_filtered_data"] is not None:
+    df_hq = pd.read_json(config["path_to_filtered_data"])
+    #names_ph6_ = df_hq.query(f"library == '{config['library']}' & pH == 'pH6'")["name_rt-group"].values
+    #names_ph9_ = df_hq.query(f"library == '{config['library']}' & pH == 'pH9'")["name_rt-group"].values
+    names_ph6_ = df_hq.query(f"pH == 'pH6'")["name_rt-group"].values
+    names_ph9_ = df_hq.query(f"pH == 'pH9'")["name_rt-group"].values
+
+print(config["path_to_filtered_data"])
+print("namesph6", names_ph6_)
+print("namesph9", names_ph9_)
+
+
+# all hx fpaths gen string
+lowph_all_hx_dist_fpaths_gen_ = hxms_file_path_gen_with_wildcard(hxms_fpath_dir=config['low_ph_hxms_fpath_dir'], levels_to_fpaths=config['level_to_fpaths_low_ph'], hxms_file_end_str=config['low_ph_hxms_fpath_delim_str'], wildcard_='lowph_name_all', wildcard_container=True, hxms_distruct=config['lowph_hdxlim_dirstruct'], hxms_pathtype_str=config['low_hdxlim_pathtype_str'])
+hiph_all_hx_dist_fpaths_gen_ = hxms_file_path_gen_with_wildcard(hxms_fpath_dir=config['high_ph_hxms_fpath_dir'], levels_to_fpaths=config['level_to_fpaths_high_ph'], hxms_file_end_str=config['high_ph_hxms_fpath_delim_str'], wildcard_='hiph_name_all', wildcard_container=True, hxms_distruct=config['highph_hdxlim_dirstruct'], hxms_pathtype_str=config['high_hdxlim_pathtype_str'])
+
+lowph_prot_name_list, lowph_prot_name_seq_dict = gen_prot_name_seq_list(hxms_dist_top_dir=config['low_ph_hxms_fpath_dir'], hxms_end_string=config['low_ph_hxms_fpath_delim_str'], levels_to_fpaths=config['level_to_fpaths_low_ph'], hdxlim_dir_struct=config['lowph_hdxlim_dirstruct'], hdxlim_pathtype_str=config['low_hdxlim_pathtype_str'], libinfo_fpath=config['low_ph_library_info'], protein_rt_column_name=config['lowph_protein_rt_column_name'], protein_list_hq=names_ph6_)
+hiph_prot_name_list, highph_prot_name_seq_dict = gen_prot_name_seq_list(hxms_dist_top_dir=config['high_ph_hxms_fpath_dir'], hxms_end_string=config['high_ph_hxms_fpath_delim_str'], levels_to_fpaths=config['level_to_fpaths_high_ph'], hdxlim_dir_struct=config['highph_hdxlim_dirstruct'], hdxlim_pathtype_str=config['high_hdxlim_pathtype_str'], libinfo_fpath=config['high_ph_library_info'], protein_rt_column_name=config['highph_protein_rt_column_name'], protein_list_hq=names_ph9_)
+
+# matching hx fpaths gen string
+lowph_match_hx_dist_fpaths_gen_ = hxms_file_path_gen_with_wildcard(hxms_fpath_dir=config['low_ph_hxms_fpath_dir'], levels_to_fpaths=config['level_to_fpaths_low_ph'], hxms_file_end_str=config['low_ph_hxms_fpath_delim_str'], wildcard_='lowph_name_match', wildcard_container=True, hxms_distruct=config['lowph_hdxlim_dirstruct'], hxms_pathtype_str=config['low_hdxlim_pathtype_str'])
+highph_match_hx_dist_fpaths_gen_ = hxms_file_path_gen_with_wildcard(hxms_fpath_dir=config['high_ph_hxms_fpath_dir'], levels_to_fpaths=config['level_to_fpaths_high_ph'], hxms_file_end_str=config['high_ph_hxms_fpath_delim_str'], wildcard_='highph_name_match', wildcard_container=True, hxms_distruct=config['highph_hdxlim_dirstruct'], hxms_pathtype_str=config['high_hdxlim_pathtype_str'])
+
+# generate matching lists
+lowph_protname_match, highph_protname_match, match_seq_list, low_high_name_, low_high_name_seq_dict, low_name_dict_, high_name_dict_, low_high_name_prot_name_dict_, low_high_name_low_ph_fpath_, lowh_high_name_high_ph_fpath_ = gen_match_protein_ids(low_ph_libinfo_fpath=config['low_ph_library_info'], lowph_protein_rt_column_name=config['lowph_protein_rt_column_name'], high_ph_libinfo_fpath=config['high_ph_library_info'], highph_protein_rt_column_name=config['highph_protein_rt_column_name'], low_ph_hxms_dir=config['low_ph_hxms_fpath_dir'], low_ph_level_to_fpaths=config['level_to_fpaths_low_ph'], low_ph_hxms_end_string=config['low_ph_hxms_fpath_delim_str'], lowph_hdxlim_dir_struct=config['lowph_hdxlim_dirstruct'], lowph_hdxlim_pathtype_str=config['low_hdxlim_pathtype_str'], high_ph_hxms_dir=config['high_ph_hxms_fpath_dir'], high_ph_level_to_fpaths=config['level_to_fpaths_high_ph'], high_ph_hxms_end_string=config['high_ph_hxms_fpath_delim_str'], highph_hdxlim_dir_struct=config['highph_hdxlim_dirstruct'], highph_hdxlim_pathtype_str=config['high_hdxlim_pathtype_str'], rt_window=config['merge_rt_window'], protein_list_hq_ph6=names_ph6_, protein_list_hq_ph9=names_ph9_)
+
+
+
+# EXECUTABLES
+gen_time_specific_bkexch_path = scripts_dirpath + '/gen_time_specific_bkexch_corr.py'
+gen_backexch_corr_low_high_python_path = scripts_dirpath + '/gen_backexchange_corr_low_high_ph.py'
+
+rule all:
+    input:
+         backexchange_output_path + '/low_ph_bkexch_corr.csv',
+         backexchange_output_path + '/low_ph_bkexch_corr.pdf',
+         backexchange_output_path + '/high_ph_bkexch_corr.csv',
+         backexchange_output_path + '/high_ph_bkexch_corr.pdf',
+         backexchange_output_path + '/high_low_backexchange_corr.csv',
+         backexchange_output_path + '/high_low_backexchange_corr.pdf',
+         backexchange_output_path + '/high_low_backexchange_list.csv'
+
+
+
+rule gen_tp_specific_bkexch_low:
+    input:
+        list_of_hx_fpaths = expand(lowph_all_hx_dist_fpaths_gen_, lowph_name_all=lowph_prot_name_list)
+    params:
+        delim_string = config['low_ph_hxms_fpath_delim_str'],
+        rate_tol = config['rate_tol'],
+        min_num_points = config['min_num_points'],
+        change_rate_threshold = config['change_rate_threshold']
+    resources: cpus=1
+    output:
+        corr_fpath = backexchange_output_path + '/low_ph_bkexch_corr.csv',
+        corr_plot_path = backexchange_output_path + '/low_ph_bkexch_corr.pdf'
+    benchmark:
+        benchmark_dpath + '/gen_tp_specific_bkexch_low.benchmark.txt'
+    shell:
+        'python ' + gen_time_specific_bkexch_path + ' -l {input.list_of_hx_fpaths} -s {params.delim_string} -r {params.rate_tol} -c {params.change_rate_threshold} -m {params.min_num_points} -p {output.corr_plot_path} -o {output.corr_fpath}'
+
+
+rule gen_tp_specific_bkexch_high:
+        input:
+            list_of_hx_fpaths = expand(hiph_all_hx_dist_fpaths_gen_, hiph_name_all=hiph_prot_name_list)
+        params:
+            delim_string = config['high_ph_hxms_fpath_delim_str'],
+            rate_tol = config['rate_tol'],
+            min_num_points = config['min_num_points'],
+            change_rate_threshold = config['change_rate_threshold']
+        resources: cpus=1
+        output:
+            corr_fpath = backexchange_output_path + '/high_ph_bkexch_corr.csv',
+            corr_plot_path = backexchange_output_path + '/high_ph_bkexch_corr.pdf'
+        benchmark:
+            benchmark_dpath + '/gen_tp_specific_bkexch_high.benchmark.txt'
+        shell:
+            'python ' + gen_time_specific_bkexch_path + ' -l {input.list_of_hx_fpaths} -s {params.delim_string} -r {params.rate_tol} -c {params.change_rate_threshold} -m {params.min_num_points} -p {output.corr_plot_path} -o {output.corr_fpath}'
+
+rule gen_backexchange_correlation_low_high:
+    input:
+        low_ph_file_list = expand(lowph_match_hx_dist_fpaths_gen_, lowph_name_match=lowph_protname_match),
+        high_ph_file_list = expand(highph_match_hx_dist_fpaths_gen_, highph_name_match=highph_protname_match),
+        low_backexch_corr_path = backexchange_output_path + '/low_ph_bkexch_corr.csv',
+        high_backexch_corr_path = backexchange_output_path + '/high_ph_bkexch_corr.csv'
+    params:
+        lowph_protname_list = lowph_protname_match,
+        highph_protname_list = highph_protname_match,
+        prot_seq_list = match_seq_list,
+        low_ph_d2o_frac = config['low_ph_d2o_frac'],
+        low_ph_d2o_pur = config['low_ph_d2o_pur'],
+        high_ph_d2o_frac = config['high_ph_d2o_frac'],
+        high_ph_d2o_pur = config['high_ph_d2o_pur'],
+        sautration_mass_rate_threshold = config['saturation_mass_rate'],
+        bkexch_low_bound = config['backexhange_low_bound'],
+        bkexch_up_bound = config['backexchange_up_bound']
+    resources: cpus=1
+    output:
+        bkexch_corr_path = backexchange_output_path + '/high_low_backexchange_corr.csv',
+        bkexch_corr_plot = backexchange_output_path + '/high_low_backexchange_corr.pdf',
+        bkexch_high_low_csv_path = backexchange_output_path + '/high_low_backexchange_list.csv'
+    benchmark:
+        benchmark_dpath + '/gen_backexchange_correlation_low_high.benchmark.txt'
+    shell:
+        'python ' + gen_backexch_corr_low_high_python_path + ' -lpfl {input.low_ph_file_list} -hpfl {input.high_ph_file_list} -lpnl {params.lowph_protname_list} -hpnl {params.highph_protname_list} -sl {params.prot_seq_list} -ldf {params.low_ph_d2o_frac} -ldp {params.low_ph_d2o_pur} -hdf {params.high_ph_d2o_frac} -hdp {params.high_ph_d2o_pur} -smr {params.sautration_mass_rate_threshold} -blb {params.bkexch_low_bound} -bub {params.bkexch_up_bound} -hbc {input.high_backexch_corr_path} -lbc {input.low_backexch_corr_path} -bco {output.bkexch_corr_path} -bcp {output.bkexch_corr_plot} -bko {output.bkexch_high_low_csv_path}'
