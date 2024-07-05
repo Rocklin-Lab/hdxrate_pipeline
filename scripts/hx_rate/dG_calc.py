@@ -29,6 +29,9 @@ def dg_calc_from_file(hxrate_pickle_fpath: str,
     :return:
     """
 
+    print("AF", temp, ph, d2o_purity, d2o_fraction, netcharge_corr, min_fe_val, output_picklepath)
+
+
     hxrate_obj_ = load_pickle_object(hxrate_pickle_fpath)
 
     dg_output = dg_calc(sequence=hxrate_obj_['sequence'],

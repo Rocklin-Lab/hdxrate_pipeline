@@ -212,10 +212,16 @@ def gen_nomatch_protein_list(low_ph_libinfo_fpath,
 
 
     hxfpath_dict = dict()
+    hxfpath_dict['low'] = dict()
+    hxfpath_dict['pH9'] = dict()
     prot_name_dict = dict()
     prot_seq_dict = dict()
     ph_dict = dict()
+    ph_dict['low'] = dict()
+    ph_dict['pH9'] = dict()
     exp_label_dict = dict()
+    exp_label_dict['low'] = dict()
+    exp_label_dict['pH9'] = dict()
 
     for lowphrtname_nomatch in low_ph_rtname_nomatch_list:
         lowphrt_fpath, lowphrt_file_valid = check_hxdist_fpath(prot_rt_name=lowphrtname_nomatch,
@@ -226,12 +232,12 @@ def gen_nomatch_protein_list(low_ph_libinfo_fpath,
             file_end_string=low_ph_hxms_end_string)
         if lowphrt_file_valid:
             prot_rt_name_list_pH6_.append(lowphrtname_nomatch)
-            hxfpath_dict[lowphrtname_nomatch] = lowphrt_fpath
+            hxfpath_dict['low'][lowphrtname_nomatch] = lowphrt_fpath
             lowph_prot_seq = low_ph_libinfo_df[low_ph_libinfo_df[lowph_protein_rt_column_name] == lowphrtname_nomatch]['sequence'].values[0]
             prot_seq_dict[lowphrtname_nomatch] = lowph_prot_seq
             prot_name_dict[lowphrtname_nomatch] = gen_prot_name_from_rt_name(lowphrtname_nomatch)
-            ph_dict[lowphrtname_nomatch] = low_ph_value
-            exp_label_dict[lowphrtname_nomatch] = config['low_ph_exp_label']
+            ph_dict['low'][lowphrtname_nomatch] = low_ph_value
+            exp_label_dict['low'][lowphrtname_nomatch] = config['low_ph_exp_label']
 
     for highphrtname_nomatch in high_ph_rtname_nomatch_list:
         highphrt_fpath, highphrt_file_valid = check_hxdist_fpath(prot_rt_name=highphrtname_nomatch,
@@ -243,11 +249,11 @@ def gen_nomatch_protein_list(low_ph_libinfo_fpath,
         if highphrt_file_valid:
             highph_prot_seq = high_ph_libinfo_df[high_ph_libinfo_df[highph_protein_rt_column_name] == highphrtname_nomatch]['sequence'].values[0]
             prot_rt_name_list_pH9_.append(highphrtname_nomatch)
-            hxfpath_dict[highphrtname_nomatch] = highphrt_fpath
+            hxfpath_dict['pH9'][highphrtname_nomatch] = highphrt_fpath
             prot_seq_dict[highphrtname_nomatch] = highph_prot_seq
             prot_name_dict[highphrtname_nomatch] = gen_prot_name_from_rt_name(highphrtname_nomatch)
-            ph_dict[highphrtname_nomatch] = high_ph_value
-            exp_label_dict[highphrtname_nomatch] = config['high_ph_exp_label']
+            ph_dict['pH9'][highphrtname_nomatch] = high_ph_value
+            exp_label_dict['pH9'][highphrtname_nomatch] = config['high_ph_exp_label']
 
     return prot_rt_name_list_pH6_, prot_rt_name_list_pH9_, hxfpath_dict, prot_seq_dict, prot_name_dict, ph_dict, exp_label_dict
 
@@ -320,21 +326,21 @@ else:
 
 rule fit_hx_rates_pH6:
     input:
-        hx_dist_fpath = lambda wildcards: hxfpath_dict_[wildcards.prot_rt_name],
-        bkexch_corr_fpath = lambda wildcards: bkexch_corr_fpath_dict[ph_dict_[wildcards.prot_rt_name]]
+        hx_dist_fpath = lambda wildcards: hxfpath_dict_['low'][wildcards.prot_rt_name],
+        bkexch_corr_fpath = lambda wildcards: bkexch_corr_fpath_dict[ph_dict_['low'][wildcards.prot_rt_name]]
     params:
         prot_seq = lambda wildcards: prot_seq_dict_[wildcards.prot_rt_name],
         prot_name = lambda wildcards: prot_name_dict_[wildcards.prot_rt_name],
         prot_rt_name = '{prot_rt_name}',
-        d2o_frac = lambda wildcards: d2o_frac_dict[ph_dict_[wildcards.prot_rt_name]],
-        d2o_pur = lambda wildcards: d2o_pur_dict[ph_dict_[wildcards.prot_rt_name]],
-        ph= lambda wildcards: ph_dict_[wildcards.prot_rt_name],
+        d2o_frac = lambda wildcards: d2o_frac_dict[ph_dict_['low'][wildcards.prot_rt_name]],
+        d2o_pur = lambda wildcards: d2o_pur_dict[ph_dict_['low'][wildcards.prot_rt_name]],
+        ph= lambda wildcards: ph_dict_['low'][wildcards.prot_rt_name],
         adjust_backexchange = adjust_backexchange_param,
         sample_backexchange = sample_backexchange_param,
         num_chains = config['num_chains'],
         num_warmups = config['num_warmups'],
         num_samples = config['num_samples'],
-        exp_label = lambda wildcards: exp_label_dict_[wildcards.prot_rt_name]
+        exp_label = lambda wildcards: exp_label_dict_['low'][wildcards.prot_rt_name]
     resources: cpus = 1, mem_mb=get_mem_mb
     output:
         pk_file = hxrate_dpath + '/pH6/{prot_rt_name}/{prot_rt_name}_hx_rate_fit.pickle',
@@ -350,21 +356,21 @@ rule fit_hx_rates_pH6:
 
 rule fit_hx_rates_pH9:
     input:
-        hx_dist_fpath = lambda wildcards: hxfpath_dict_[wildcards.prot_rt_name],
-        bkexch_corr_fpath = lambda wildcards: bkexch_corr_fpath_dict[ph_dict_[wildcards.prot_rt_name]]
+        hx_dist_fpath = lambda wildcards: hxfpath_dict_['pH9'][wildcards.prot_rt_name],
+        bkexch_corr_fpath = lambda wildcards: bkexch_corr_fpath_dict[ph_dict_['pH9'][wildcards.prot_rt_name]]
     params:
         prot_seq = lambda wildcards: prot_seq_dict_[wildcards.prot_rt_name],
         prot_name = lambda wildcards: prot_name_dict_[wildcards.prot_rt_name],
         prot_rt_name = '{prot_rt_name}',
-        d2o_frac = lambda wildcards: d2o_frac_dict[ph_dict_[wildcards.prot_rt_name]],
-        d2o_pur = lambda wildcards: d2o_pur_dict[ph_dict_[wildcards.prot_rt_name]],
-        ph= lambda wildcards: ph_dict_[wildcards.prot_rt_name],
+        d2o_frac = lambda wildcards: d2o_frac_dict[ph_dict_['pH9'][wildcards.prot_rt_name]],
+        d2o_pur = lambda wildcards: d2o_pur_dict[ph_dict_['pH9'][wildcards.prot_rt_name]],
+        ph= lambda wildcards: ph_dict_['pH9'][wildcards.prot_rt_name],
         adjust_backexchange = adjust_backexchange_param,
         sample_backexchange = sample_backexchange_param,
         num_chains = config['num_chains'],
         num_warmups = config['num_warmups'],
         num_samples = config['num_samples'],
-        exp_label = lambda wildcards: exp_label_dict_[wildcards.prot_rt_name]
+        exp_label = lambda wildcards: exp_label_dict_['pH9'][wildcards.prot_rt_name]
     resources: cpus = 1, mem_mb=get_mem_mb
     output:
         pk_file = hxrate_dpath + '/pH9/{prot_rt_name}/{prot_rt_name}_hx_rate_fit.pickle',
@@ -387,7 +393,7 @@ if config['dg_calc']:
         input:
             hx_rate_pickle_fpath = hxrate_dpath + '/pH6/{prot_rt_name}/{prot_rt_name}_hx_rate_fit.pickle'
         params:
-            pH = lambda wildcards: ph_dict_[wildcards.prot_rt_name],
+            pH = lambda wildcards: ph_dict_['low'][wildcards.prot_rt_name],
             temp = config['temp'],
             minfe = config['min_fe'],
             net_charge_corr = netcharge_param,
@@ -407,7 +413,7 @@ if config['dg_calc']:
         input:
             hx_rate_pickle_fpath = hxrate_dpath + '/pH9/{prot_rt_name}/{prot_rt_name}_hx_rate_fit.pickle'
         params:
-            pH = lambda wildcards: ph_dict_[wildcards.prot_rt_name],
+            pH = lambda wildcards: ph_dict_['pH9'][wildcards.prot_rt_name],
             temp = config['temp'],
             minfe = config['min_fe'],
             net_charge_corr = netcharge_param,
