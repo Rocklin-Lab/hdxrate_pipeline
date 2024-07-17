@@ -135,10 +135,10 @@ def main():
     parser.add_argument('--merge', action='store_true', help="Include processing with merging information if specified")
     parser.add_argument('--rate_fit_output_folder', type=str, default='rate_fit_output', help="Specify the folder containing rate fitting output")
     parser.add_argument('--po_consolidated_results', type=str, required=True, help="Path to the JSON file with metrics from another pipeline")
-    parser.add_argument('--output_nomatches', type=str, required=True, help="Output JSON file name for nomatches")
-    parser.add_argument('--output_matches', type=str, help="Output JSON file name for matches, if processing with merge")
-    parser.add_argument('--output_consolidated_po_and_rates_nomatches', type=str, required=True, help="Output JSON file name for merged nomatches")
-    parser.add_argument('--output_consolidated_po_and_rates_matches', type=str, help="Output JSON file name for merged matches, if processing with merge")
+    parser.add_argument('--output_nomatches', type=str, required=True, help="Output JSON file name for nomatches", default='consolidated_rates_unmerged.json')
+    parser.add_argument('--output_matches', type=str, help="Output JSON file name for matches, if processing with merge", default='consolidated_rates_merged.json')
+    parser.add_argument('--output_consolidated_po_and_rates_nomatches', type=str, required=True, help="Output JSON file name for merged nomatches", default='consolidated_po_and_rates_unmerged.json')
+    parser.add_argument('--output_consolidated_po_and_rates_matches', type=str, help="Output JSON file name for merged matches, if processing with merge", default='consolidated_po_and_rates_merged.json')
 
     args = parser.parse_args()
 
