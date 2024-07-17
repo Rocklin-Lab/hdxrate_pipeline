@@ -24,8 +24,8 @@ def max_value(rows):
 
 def main(args):
     # Load data
-    df_merged = pd.read_json(args.merged_file) if args.merged_file else pd.DataFrame()
-    df_unmerged = pd.read_json(args.unmerged_file) if args.unmerged_file else pd.DataFrame()
+    df_unmerged = pd.read_json(args.single_pH_file) if args.unmerged_file else pd.DataFrame()
+    df_merged = pd.read_json(args.two_pHs_file) if args.merged_file else pd.DataFrame()
     if not df_merged.empty:
         df_merged["max_idotp"] = df_merged.apply(lambda x: max_value(x), axis=1)
     if not df_unmerged.empty:
@@ -89,18 +89,23 @@ def main(args):
     df_3["group"] = "group_3: not fully deuterated merged"
 
     df_filtered = pd.concat([df_0, df_1, df_2, df_3]).reset_index(drop=True)
+    print(f"Total rows in filtered data: {len()} \n # of unique sequences: {len(set(df_filtered.sequence))} ")
     df_filtered.to_json(args.output_filtered)
+    
+    df_deduplicated = df_filtered.sort_values('PO_total_score').drop_duplicates('sequence').reset_index(drop=True)
+    df_deduplicated.to_json(args.output_deduplicated)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process JSON files and filter data.')
-    parser.add_argument('--merged_file', type=str, default='consolidated_po_and_rates_merged.json',
+    parser.add_argument('-s', '--single_pH_file', type=str, default='consolidated_po_and_rates_unmerged.json',
                         help='Path to the merged JSON file')
-    parser.add_argument('--unmerged_file', type=str, default='consolidated_po_and_rates_unmerged.json',
+    parser.add_argument('-t', '--two_pHs_file', type=str, default='consolidated_po_and_rates_merged.json',
                         help='Path to the unmerged JSON file')
-    parser.add_argument('--output_unfiltered', type=str, default='df_unfiltered_data.json',
+    parser.add_argument('-ou', '--output_unfiltered', type=str, default='df_unfiltered_data.json',
                         help='Output path for unfiltered data')
-    parser.add_argument('--output_filtered', type=str, default='df_filtered.json', help='Output path for filtered data')
+    parser.add_argument('-of','--output_filtered', type=str, default='df_filtered.json', help='Output path for filtered data')
+    parser.add_argument('-od', '--output_deduplicated', type=str, default='df_deduplicated.json', help='Output path for filtered data')
 
     args = parser.parse_args()
     main(args)
