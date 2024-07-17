@@ -89,7 +89,7 @@ def main(args):
     df_3["group"] = "group_3: not fully deuterated merged"
 
     df_filtered = pd.concat([df_0, df_1, df_2, df_3]).reset_index(drop=True)
-    print(f"Total rows in filtered data: {len()} \n # of unique sequences: {len(set(df_filtered.sequence))} ")
+    print(f"Total rows in filtered data: {len(df_filtered)} \n # of unique sequences: {len(set(df_filtered.sequence))} ")
     df_filtered.to_json(args.output_filtered)
     
     df_deduplicated = df_filtered.sort_values('PO_total_score').drop_duplicates('sequence').reset_index(drop=True)
