@@ -130,48 +130,49 @@ def generate_rates_df_with_merge(fs, n_highest, library):
 
 def main():
     parser = argparse.ArgumentParser(description="Process rates files and generate dataframes.")
-    parser.add_argument('--n_highest', type=int, default=5, help="Number of highest elements to consider for dg_mean calculation")
-    parser.add_argument('--library', type=str, required=True, help="Library identifier")
-    parser.add_argument('--merge', action='store_true', help="Include processing with merging information if specified")
-    parser.add_argument('--rate_fit_output_folder', type=str, default='rate_fit_output', help="Specify the folder containing rate fitting output")
-    parser.add_argument('--po_consolidated_results', type=str, required=True, help="Path to the JSON file with metrics from another pipeline")
-    parser.add_argument('--output_nomatches', type=str, required=True, help="Output JSON file name for nomatches", default='consolidated_rates_unmerged.json')
-    parser.add_argument('--output_matches', type=str, help="Output JSON file name for matches, if processing with merge", default='consolidated_rates_merged.json')
-    parser.add_argument('--output_consolidated_po_and_rates_nomatches', type=str, required=True, help="Output JSON file name for merged nomatches", default='consolidated_po_and_rates_unmerged.json')
-    parser.add_argument('--output_consolidated_po_and_rates_matches', type=str, help="Output JSON file name for merged matches, if processing with merge", default='consolidated_po_and_rates_merged.json')
+    parser.add_argument('-n', '--n_highest', type=int, default=5, help="Number of highest elements to consider for dg_mean calculation")
+    parser.add_argument('-l', '--library', type=str, required=True, help="Library identifier")
+    parser.add_argument('-m', '--merge', action='store_true', help="Include processing with merging information if specified")
+    parser.add_argument('-p', '--prefix', type=str, default='', help="Specify the prefix to results folder which is also going to be used to output files. If present, INCLUDE underscore ('_')")
 
     args = parser.parse_args()
 
+    prefix = args.prefix
+    po_results = f"{prefix}po_results.json"
+    rate_fit_output_folder = f"{prefix}rate_fit_output"
+    output_nomatches = f"{prefix}RateFittingResults_nomatches.json"
+    output_matches = f"{prefix}RateFittingResults_matches.json"
+    output_po_nomatches = f"{prefix}PO_and_RateFittingResults_nomatches.json"
+    output_po_matches = f"{prefix}PO_and_RateFittingResults_matches.json"
+
     # Always process nomatches
-    fs_nomatches = sorted(glob.glob(f"{args.rate_fit_output_folder}/nomatches/dG/*/*/*pickle"))
+    fs_nomatches = sorted(glob.glob(f"{rate_fit_output_folder}/nomatches/dG/*/*/*pickle"))
     df_nomatches = generate_rates_df(fs_nomatches, args.n_highest, args.library)
-    df_nomatches.to_json(args.output_nomatches, orient='records', indent=4)
-    print(f"Nomatches output saved to {args.output_nomatches}")
+    df_nomatches.to_json(output_nomatches, orient='records', indent=4)
+    print(f"Nomatches output saved to {output_nomatches}")
 
     # Load the other pipeline metrics
-    df_po = pd.read_json(args.po_consolidated_results)
+    df_po = pd.read_json(po_results)
 
     # Merge nomatches with the other pipeline metrics
     df_merged_nomatches = pd.merge(df_nomatches, df_po, how="left", left_on=["name_rt-group", "pH", "library"], right_on=["name_rt-group", "pH", "library"])
 
-    # Select only data from pH6, drop duplicated_timepoints
-    df_merged_nomatches.rename({"timepoints_x":"timepoints"}, axis=1, inplace=True)
+    # Select only data from pH6, drop duplicated timepoints
+    df_merged_nomatches.rename({"timepoints_x": "timepoints"}, axis=1, inplace=True)
     df_merged_nomatches.drop(labels="timepoints_y", axis=1, inplace=True)
     df_merged_nomatches = df_merged_nomatches.query("pH == 'pH6'").reset_index(drop=True)
 
-#    pdb.set_trace()
-
     df_merged_nomatches = process_dataframe_unmerged(df_merged_nomatches)
 
-    df_merged_nomatches.to_json(args.output_consolidated_po_and_rates_nomatches, orient='records', indent=4)
-    print(f"Merged nomatches output saved to {args.output_consolidated_po_and_rates_nomatches}")
+    df_merged_nomatches.to_json(output_po_nomatches, orient='records', indent=4)
+    print(f"Merged nomatches output saved to {output_po_nomatches}")
 
     # Optionally process matches if --merge is specified
-    if args.merge and args.output_matches:
-        fs_matches = sorted(glob.glob(f"{args.rate_fit_output_folder}/dG_*/*/*pickle"))
+    if args.merge:
+        fs_matches = sorted(glob.glob(f"{rate_fit_output_folder}/dG_*/*/*pickle"))
         df_matches = generate_rates_df_with_merge(fs_matches, args.n_highest, args.library)
-        df_matches.to_json(args.output_matches, orient='records', indent=4)
-        print(f"Matches output saved to {args.output_matches}")
+        df_matches.to_json(output_matches, orient='records', indent=4)
+        print(f"Matches output saved to {output_matches}")
 
         # Merge matches with the other pipeline metrics
         df_merged_pH6 = pd.merge(df_matches.drop(labels=["name_rt-group"], axis=1),
@@ -197,9 +198,8 @@ def main():
 
         df_merged_pH6_pH9 = process_dataframe_merged(df_merged_pH6_pH9)
 
-        # df_merged_pH6_pH9[~df_merged_pH6_pH9.isna().any(axis=1)].to_json(args.consolidated_po_and_rates_matches, orient='records', indent=4)
-        df_merged_pH6_pH9.to_json(args.output_consolidated_po_and_rates_matches, orient='records', indent=4)
-        print(f"Merged matches output saved to {args.output_consolidated_po_and_rates_matches}")
+        df_merged_pH6_pH9.to_json(output_po_matches, orient='records', indent=4)
+        print(f"Merged matches output saved to {output_po_matches}")
 
 if __name__ == "__main__":
     main()
