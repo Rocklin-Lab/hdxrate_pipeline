@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import argparse
 import json
+import os
 
 def max_value(rows):
     columns = ["idotp", "idotp_pH6", "idotp_pH9"]
