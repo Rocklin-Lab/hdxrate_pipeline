@@ -1,133 +1,134 @@
-# **hxrate**
+# **HDX Rate Pipeline with Snakemake**
+
+## **Overview**
+This pipeline processes HX MS data using `mhdx-pipeline` (https://github.com/Rocklin-Lab/mhdx-pipeline) and computes exchange rates. It supports single-pH (pH6) and dual-pH (pH6 & pH9) experiments.
+
+### **Folder Organization** (for dual-pH experiments)
+```
+{library_name}/
+  ├── {date-of-experiment}_{library_name}_pH6/
+  │   ├── {mhdx-pipeline}/
+  ├── {date-of-experiment}_{library_name}_pH9/
+      ├── {mhdx-pipeline}/
+```
+
+---
+## **Setup**
+
+### **1. Clone Repositories**
+```bash
+git clone https://github.com/Rocklin-Lab/hdxrate-tools.git
+git clone https://github.com/Rocklin-Lab/hdxrate-pipeline.git
+```
+
+### **2. Create and Activate Environment**
+```bash
+conda create -n hdxrate python=3.9 snakemake=7.26.0
+conda activate hdxrate
+python -m pip install ./hxrate-tools
+```
+
+### **3. Prepare Config File**
+Copy the config file to your working directory:
+```bash
+cp {path-to-hdxrate-pipeline}/config.yml {path-to-{library_name}}
+```
+
+### **4. Organize Data**
+For **single-pH** experiments, copy the consolidated results:
+```bash
+cp {library_name}/{date-of-experiment}_{library_name}_pH6/{mhdx-pipeline}/resources/10_ic_time_series/consolidated_results.json .
+```
+For **dual-pH** experiments, concatenate JSON files:
+```bash
+python {path-to}/hdxrate-pipeline/auxiliar/concatenate_dataframes.py \
+    {path-to-first-consolidated_results.json} \
+    {path-to-second-consolidated_results.json} \
+    --output {date_ph6_data}_{date_ph9_data}_po_results.json
+```
+**Important:** Preserve the prefix `{date_ph6_data}_{date_ph9_data}_po_results.json` for post-processing.
+
+---
+## **Running the Pipeline**
+### **1. Configure `config.yml`**
+Modify these key parameters:
+```yaml
+path_to_repo: "{path-to}/hdxrate-pipeline"
+path_to_filtered_data: "{path-to}/{library}/{date_ph6_data}_{date_ph9_data}_po_results.json"
+library: "{library-name}"  # Must match exactly in consolidated results
+output_dirpath: "{date_ph6_data}_{date_ph9_data}_rate_fit_output"
+low_ph_library_info: "{path-to}/{library_name}/{date-of-experiment}_{library_name}_pH6/mhdx-pipeline/resources/7_idotp_filter/checked_library_info.json"
+high_ph_library_info: "{path-to}/{library_name}/{date-of-experiment}_{library_name}_pH9/resources/7_idotp_filter/checked_library_info.json"
+```
+
+### **2. Run the Snakemake Workflow**
+#### **Step 1: Backexchange Correction**
+```bash
+snakemake -s {path-to}/hdxrate_pipeline/snakefiles/1_Snakefile_twopHs_bx -j 1000 --keep-going \
+    --cluster "sbatch -A p31346 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
+```
+#### **Step 2: Rate Fitting**
+```bash
+snakemake -s {path-to}/hxrate_pipeline/snakefiles/2_Snakefile_twopHs_nomatches -j 1000 --keep-going \
+    --cluster "sbatch -A p31346 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
+```
+#### **Step 3: Delta G Calculation**
+```bash
+snakemake -s {path-to}/hxrate_pipeline/snakefiles/3_Snakefile_twopHs_merge -j 1000 --keep-going \
+    --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
+```
+**Note:** If using only pH6 data, replace `twopHs` with `singlepH` in the Snakefile names.
+
+#### **Step 4: Consolidate Results**
+```bash
+python {path-to}/hxrate_pipeline/auxiliar/consolidate_rate_fit_results.py -l {library-name} -m -p {date_ph6_data}_{date_ph9_data}_ 
+```
+**Omit `-m`** if only pH6 data is available.
+
+---
+## **Advanced options configuration file (`config.yml`)**
+
+### **Backexchange Correction Parameters**
+```yaml
+backexchange_correction: true  # Enable backexchange correction
+rate_tol: 0.05  # Max tolerance for mass change
+min_num_points: 5  # Minimum required data points
+change_rate_threshold: 0.1  # Threshold for mass rate change
+```
+
+### **Experimental Parameters**
+```yaml
+d2o_fraction: 0.95
+d2o_purity: 0.95
+```
+
+### **Rate Fitting Parameters**
+```yaml
+adjust_backexchange: true  # Adjust if slowest rate is 1.6x slower
+sample_backexchange: true  # Sample backexchange during fitting
+num_chains: 4  # MCMC chains for rate fitting
+num_warmups: 1000  # MCMC warmup iterations
+num_samples: 5000  # Number of samples for MCMC
+```
+
+### **Delta G Calculation Parameters**
+```yaml
+pH: 6.0  # Experiment pH
+temp: 298  # Temperature in Kelvin
+nterm: ""  # N-terminal addition (optional)
+cterm: ""  # C-terminal addition (optional)
+net_charge_corr: true  # Use net charge correction
+```
+
+### **Merging Parameters**
+```yaml
+merge_rt_window: 1.0  # Window to merge proteins with matching names in minutes
+```
+
+---
+## **Final Notes**
+- Ensure proper paths are set before running Snakemake commands.
+- Adjust computational resources (`--mem=4GB`, `-t 04:00:00`) based on your HPC setup.
+- For troubleshooting, check Snakemake logs and intermediate outputs.
+- For questions, contact the authors.
 
-Set of scripts to obtain set of rates from HX MS data
-
-
-## **RUN DISTRIBUTED JOBS IN HPC CLUSTERS**
-
-## **RUN VIA SNAKEMAKE**
-
-Create a virtual environment
-
-`conda create -n hdxrate python=3.9`
-
-Activate the environment
-
-`conda activate hdxrate`
-
-Install hxrate package
-
-`python -m pip install hxrate`
-
-Install snakemake
-
-`python -m pip install snakemake`
-
-
-### **Tips**
-You can always do a dry run to make sure the pipeline will work with the way you've set up config file.
-
-for dry run: $ snakemake -s Snakefile -j 1 --dry-run
-
-
-if there are no errors, you're good to go. If there are errors, make sure everything is set up properly.
-
-If you suspect the error is not your fault and there might be something wrong with the pipeline, contact me and I can help.
-
-
-## **Single pH data**
-
-configfile: config/config.yml. Config file has all the parameters set to run rate fitting + dg calculation.
-
-Snakefile: workfoler/Snakefile. Make sure to change the path to config file in the begining of the file to the correct one before running
-
-
-`nohup snakemake -s Snakefile -j 1000 --keep-going --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3 > nohup_snakefile.out &`
-
-
-## **Low and high pH data**
-
-configfile: config/config_merge.yml. This config file has all the parameters set to run 1) merge low and high ph data, 2) rate fitting, and 3) dg calculation.
-
-Snakefile: workfoler/Merge_Snakefile & workfoler/Snakefile_nomatches. Run Merge_Snakefile before Snakefile_nomatches.
-
-
-Merge_Snakefile looks for matches in proteins between two pH runs and continues with merging -> rate fitting -> dg calculation.
-
-Snakefile_nomatches looks for proteins that didn't match and runs rate fitting -> dg calculation
-
-Merge_Snakefile will create backexchange correction files which will be necessary to run Snakefile_nomatches so make sure you run Snakefile_nomatches after backexchange correction files are produced
-
-
-`nohup snakemake -s Merge_Snakefile -j 1000 --keep-going --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3 > nohup_merge_snakefile.out &`
-
-
-`nohup snakemake -s Snakefile_nomatches -j 1000 --keep-going --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3 > nohup_snakefile_nomatches.out &`
-
-
-
-# **Config Files**
-
-## **config.yml**
-
-## filepaths
-path_to_repo: path to this repo (path to hxrate)
-
-hx_ms_dist_fpaths_top_dir: path to directory where hx ms files are located
-
-levels_to_fpaths: where the files are present under the directory. if its directly under the top dir, level is 1. if the files are top_dir/PROTEIN_RT_NAME/PROTEIN_RT_NAME_hxms.csv then the level is 2.
-
-library_info_json_fpath: library_info_json_fpath .json from HDX LIMIT Pipeline
-
-protein_rt_column_name: name of column from which protein_rt to be extracted
-
-output_dirpath: output directory path to specify. It doesn't need to actually exist but you need to specify where you would like the output files to go.
-
-
-## backexchange
-backexchange_correction: bool. Whether to calculate backexchange_correction for timepoints
-
-rate_tol: max tolerance for change in mass
-
-min_num_points: at least 5 protein_rt instances need to have similar mass rate to calculate backexchange_correction for that specific timepoint.
-
-change_rate_threshold: threshold for rate of mass change
-
-backexchange_correction_fpath: file path .csv for backexchange_correction if already computed. Keep it empty if not already computed
-
-
-## exp params
-d2o_fraction: fraction of d2o used in experiment. 0.95
-
-d2o_purity: purity of d2o used in experiment. 0.95
-
-
-## rate_fitting_parameters
-adjust_backexchange: Bool. Whether to adjust backexchange is the slowest rate is slower by >= 1.6.
-
-sample_backexchange: Bool. Whether to sample backexchange during rate fitting procedure
-
-num_chains: int. Number of MCMC chains to use during rate fitting optimization
-
-num_warmups: int. Number of initial iteration that doesn't contribute to the samples collected in the MCMC process.
-
-num_samples: int. Number of samples in the MCMC process.
-
-
-## dg calc parameters
-pH: float. ph value
-
-temp: float. temp in Kelvin
-
-nterm: str. Any n terminal addition to the sequence that is not present in the structure file (example: 'HM'). Be careful to use this as it will add nterm to all the proteins in the pipeline. Keep it empty if you don't want additions.
-
-cterm: str. Any c terminal addition to the sequence that is not present in the structure file (example: 'GS'). Be careful to use this as it will add cterm to all the proteins in the pipeline. Keep it empty if you don't want additions.
-
-net_charge_corr: Bool. Whether to use net charge correction while calculating free energy.
-
-anneal_time: float. Time to run the anneal in minutes.
-
-anneal_update_interval: int. Number of steps to save the trajectory information.
-
-## merge parameters
-merge_rt_window: window to consider proteins for merging if protein name matches.
