@@ -154,8 +154,12 @@ def main():
     # Load the other pipeline metrics
     df_po = pd.read_json(po_results)
 
+    #pdb.set_trace()
+
     # Merge nomatches with the other pipeline metrics
     df_merged_nomatches = pd.merge(df_nomatches, df_po, how="left", left_on=["name_rt-group", "pH", "library"], right_on=["name_rt-group", "pH", "library"])
+
+    #pdb.set_trace()
 
     # Select only data from pH6, drop duplicated timepoints
     df_merged_nomatches.rename({"timepoints_x": "timepoints"}, axis=1, inplace=True)
@@ -173,6 +177,8 @@ def main():
         df_matches = generate_rates_df_with_merge(fs_matches, args.n_highest, args.library)
         df_matches.to_json(output_matches, orient='records', indent=4)
         print(f"Matches output saved to {output_matches}")
+
+        #pdb.set_trace()
 
         # Merge matches with the other pipeline metrics
         df_merged_pH6 = pd.merge(df_matches.drop(labels=["name_rt-group"], axis=1),
