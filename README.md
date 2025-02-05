@@ -1,7 +1,7 @@
 # **HDX Rate Pipeline with Snakemake**
 
 ## **Overview**
-This pipeline processes HX MS data using `mhdx-pipeline` (https://github.com/Rocklin-Lab/mhdx-pipeline) and computes exchange rates. It supports single-pH (pH6) and dual-pH (pH6 & pH9) experiments.
+This pipeline processes HDX MS outputs from `mhdx-pipeline` (https://github.com/Rocklin-Lab/mhdx-pipeline) and computes exchange rates. It supports single-pH (pH6) and dual-pH (pH6 & pH9) experiments.
 
 ### **Folder Organization** (for dual-pH experiments)
 ```
