@@ -1,158 +1,211 @@
-import pandas as pd
-import numpy as np
 import argparse
-import json
+import glob
 import os
+import sys
+import numpy as np
+import pandas as pd
+
+from populate_stats import process_dataframe_unmerged, process_dataframe_merged
+
 import pdb
 
-from populate_stats import process_ex1_metrics
+def replace_nan_with_zeros(array):
+    return np.where(np.isnan(array) | (array < 0), 0, array)
 
-def max_value(rows):
-    columns = ["idotp", "idotp_pH6", "idotp_pH9"]
-    max_values = []
+def extract_info_from_dg_pickle_file(f, n_highest, library):
+    d = pd.read_pickle(f)
+    pH = "pH6" if 'pH6' in f else ("pH9" if 'pH9' in f else None)
+    protein_name = d["hxrate_output"]["protein_name"]
+    protein_rt_name = d["hxrate_output"]["protein_rt_name"]
+    sequence = d["hxrate_output"]["sequence"]
+    intrinsic_rates, intrinsic_rates_median, reg_intrinsic_rates, netcharge = d["intrinsic_rates"], d[
+        "intrinsic_rates_median"], d["reg_intrinsic_rates"], d["netcharge"]
+    chain_diag = d["hxrate_output"]["chain_diagnostics"]
+    chain_rmse_list = d["hxrate_output"]["chain_diagnostics"]["chain_rmse_list"]
+    chain_pass_list = d["hxrate_output"]["chain_diagnostics"]["chain_pass_list"]
+    bayes_sample = d["hxrate_output"]["bayes_sample"]
+    rates_mean = bayes_sample["rate"]["mean"]
+    rates_std = bayes_sample["rate"]["std"]
+    rates_ci_5 = bayes_sample["rate"]["ci_5"]
+    rates_ci_95 = bayes_sample["rate"]["ci_95"]
+    rate_fitting_rmse_total = d["hxrate_output"]["rmse"]["total"]
+    rate_fitting_rmse_per_timepoint = d["hxrate_output"]["rmse"]["per_timepoint"]
+    backexchange_per_tp = d["hxrate_output"]["backexchange"]
+    backexchange_final_tp = backexchange_per_tp[-1]
+    backexchange_n_res_subtract = d["hxrate_output"]["back_exchange_res_subtract"]
+    backexchange_ind_label = d["hxrate_output"]["tp_ind_label"]
+    timepoints = d["hxrate_output"]["timepoints"]
+    timepoints_sort_indices = d["hxrate_output"]["timepoints_sort_indices"]
+    free_energy_ = d["free_energy"]
+    free_energy = replace_nan_with_zeros(free_energy_)
+    dg_max = free_energy[0]
+    dg_mean = np.mean(free_energy[:n_highest])
+    dg_median = np.median(free_energy[:n_highest])
+    file_path = os.path.abspath(f)
 
-    for col in columns:
-        if col in rows and rows[col] is not np.nan:
-            max_values.append(max(rows[col].values()))
+    return [protein_name, library, pH, protein_rt_name, sequence,
+            intrinsic_rates, intrinsic_rates_median, reg_intrinsic_rates, netcharge, chain_rmse_list,
+            chain_pass_list,
+            rates_mean, rates_std, rates_ci_5, rates_ci_95, rate_fitting_rmse_total,
+            rate_fitting_rmse_per_timepoint,
+            backexchange_per_tp, backexchange_final_tp, backexchange_n_res_subtract, backexchange_ind_label,
+            timepoints, timepoints_sort_indices,
+            free_energy_, free_energy, dg_max, dg_mean, dg_median, file_path]
 
-    if max_values:
-        return np.min(max_values)
-    else:
-        return np.nan
+def extract_info_from_dg_pickle_file_with_merge(f, n_highest, library):
+    d = pd.read_pickle(f)
+    protein_name = d["hxrate_output"]["protein_name"]
+    sequence = d["hxrate_output"]["sequence"]
+    protein_rt_name = d["hxrate_output"]["protein_rt_name"]
+    i_split = len(protein_rt_name.split("_")) // 2
+    name_rt_group_pH6 = "_".join(protein_rt_name.split("_")[:i_split])
+    name_rt_group_pH9 = "_".join(protein_rt_name.split("_")[i_split:])
+    intrinsic_rates, intrinsic_rates_median, reg_intrinsic_rates, netcharge = d["intrinsic_rates"], d[
+        "intrinsic_rates_median"], d["reg_intrinsic_rates"], d["netcharge"]
+    chain_diag = d["hxrate_output"]["chain_diagnostics"]
+    chain_rmse_list = d["hxrate_output"]["chain_diagnostics"]["chain_rmse_list"]
+    chain_pass_list = d["hxrate_output"]["chain_diagnostics"]["chain_pass_list"]
+    bayes_sample = d["hxrate_output"]["bayes_sample"]
+    rates_mean = bayes_sample["rate"]["mean"]
+    rates_std = bayes_sample["rate"]["std"]
+    rates_ci_5 = bayes_sample["rate"]["ci_5"]
+    rates_ci_95 = bayes_sample["rate"]["ci_95"]
+    rate_fitting_rmse_total = d["hxrate_output"]["rmse"]["total"]
+    rate_fitting_rmse_per_timepoint = d["hxrate_output"]["rmse"]["per_timepoint"]
+    merge_factor_mean = bayes_sample["merge_fac"]["mean"][0]
+    merge_factor_std = bayes_sample["merge_fac"]["std"][0]
+    merge_ci_5 = bayes_sample["merge_fac"]["ci_5"][0]
+    merge_ci_95 = bayes_sample["merge_fac"]["ci_95"][0]
+    backexchange_per_tp = d["hxrate_output"]["backexchange"]
+    backexchange_final_tp = backexchange_per_tp[-1]
+    backexchange_n_res_subtract = d["hxrate_output"]["back_exchange_res_subtract"]
+    backexchange_ind_label = d["hxrate_output"]["tp_ind_label"]
+    timepoints = d["hxrate_output"]["timepoints"]
+    timepoints_sort_indices = d["hxrate_output"]["timepoints_sort_indices"]
+    free_energy_ = d["free_energy"]
+    free_energy = replace_nan_with_zeros(free_energy_)
+    dg_max = free_energy[0]
+    dg_mean = np.mean(free_energy[:n_highest])
+    dg_median = np.median(free_energy[:n_highest])
+    file_path = os.path.abspath(f)
 
-def main(args):
-    # Apply prefix to file paths if prefix is provided
-    single_pH_file = args.prefix + "PO_and_RateFittingResults_nomatches.json"
-    two_pHs_file = args.prefix + "PO_and_RateFittingResults_matches.json"
-    output_unfiltered = args.prefix + 'unfiltered.json'
-    output_filtered = args.prefix + 'filtered.json'
-    output_deduplicated = args.prefix + 'deduplicated.json'
+    return [protein_name, library, protein_rt_name, name_rt_group_pH6, name_rt_group_pH9, sequence,
+            intrinsic_rates, intrinsic_rates_median, reg_intrinsic_rates, netcharge, chain_rmse_list, chain_pass_list,
+            rates_mean, rates_std, rates_ci_5, rates_ci_95, rate_fitting_rmse_total, rate_fitting_rmse_per_timepoint,
+            merge_factor_mean, merge_factor_std, merge_ci_5, merge_ci_95,
+            backexchange_per_tp, backexchange_final_tp, backexchange_n_res_subtract, backexchange_ind_label, timepoints,
+            timepoints_sort_indices,
+            free_energy_, free_energy, dg_max, dg_mean, dg_median, file_path]
 
+def generate_rates_df(fs, n_highest, library):
+    l = []
+    for i, f in enumerate(fs):
+        if i % 1000 == 0:
+            print(f"{i} processed... {len(fs) - i} to go...")
+        l.append(extract_info_from_dg_pickle_file(f, n_highest, library))
+    return pd.DataFrame(l, columns=["name", "library", "pH", "name_rt-group", "sequence",
+                                    "intrinsic_rates", "intrinsic_rates_median", "reg_intrinsic_rates", "netcharge",
+                                    "chain_rmse_list", "chain_pass_list",
+                                    "rates_mean", "rates_std", "rates_ci_5", "rates_ci_95", "rate_fitting_rmse_total",
+                                    "rate_fitting_rmse_per_timepoint",
+                                    "backexchange_per_tp", "backexchange_final_tp", "backexchange_n_res_subtract",
+                                    "backexchange_ind_label", "timepoints", "timepoints_sort_indices",
+                                    "free_energy_", "free_energy", "dg_max", "dg_mean", "dg_median", "file_path"])
 
-    # Load data
-    if os.path.exists(single_pH_file):
-        df_unmerged = pd.read_json(single_pH_file)
-    else:
-        df_unmerged = pd.DataFrame()
+def generate_rates_df_with_merge(fs, n_highest, library):
+    l = []
+    for i, f in enumerate(fs):
+        if i % 1000 == 0:
+            print(f"{i} processed... {len(fs) - i} to go...")
+        l.append(extract_info_from_dg_pickle_file_with_merge(f, n_highest, library))
+    return pd.DataFrame(l, columns=["name", "library", "name_rt-group", "name_rt-group_pH6", "name_rt-group_pH9",
+                                    "sequence", "intrinsic_rates", "intrinsic_rates_median", "reg_intrinsic_rates",
+                                    "netcharge", "chain_rmse_list", "chain_pass_list", "rates_mean", "rates_std",
+                                    "rates_ci_5", "rates_ci_95", "rate_fitting_rmse_total",
+                                    "rate_fitting_rmse_per_timepoint", "merge_factor_mean", "merge_factor_std",
+                                    "merge_factor_ci_5", "merge_factor_ci_95", "backexchange_per_tp",
+                                    "backexchange_final_tp", "backexchange_n_res_subtract",
+                                    "backexchange_ind_label", "timepoints", "timepoints_sort_indices", "free_energy_",
+                                    "free_energy", "dg_max", "dg_mean", "dg_median", "file_path"])
 
-    if os.path.exists(two_pHs_file):
-        df_merged = pd.read_json(two_pHs_file)
-    else:
-        df_merged = pd.DataFrame()
+def main():
+    parser = argparse.ArgumentParser(description="Process rates files and generate dataframes.")
+    parser.add_argument('-n', '--n_highest', type=int, default=5, help="Number of highest elements to consider for dg_mean calculation")
+    parser.add_argument('-l', '--library', type=str, required=True, help="Library identifier")
+    parser.add_argument('-m', '--merge', action='store_true', help="Include processing with merging information if specified")
+    parser.add_argument('-p', '--prefix', type=str, default='', help="Specify the prefix to results folder which is also going to be used to output files. If present, INCLUDE underscore ('_')")
 
+    args = parser.parse_args()
 
-    if not df_merged.empty:
-        df_merged["max_idotp"] = df_merged.apply(lambda x: max_value(x), axis=1)
-    if not df_unmerged.empty:
-        df_unmerged["max_idotp"] = df_unmerged.apply(lambda x: max_value(x), axis=1)
+    prefix = args.prefix
+    po_results = f"{prefix}po_results.json"
+    rate_fit_output_folder = f"{prefix}rate_fit_output"
+    output_nomatches = f"{prefix}RateFittingResults_nomatches.json"
+    output_matches = f"{prefix}RateFittingResults_matches.json"
+    output_po_nomatches = f"{prefix}PO_and_RateFittingResults_nomatches.json"
+    output_po_matches = f"{prefix}PO_and_RateFittingResults_matches.json"
+
+    # Always process nomatches
+    fs_nomatches = sorted(glob.glob(f"{rate_fit_output_folder}/nomatches/dG/*/*/*pickle"))
+    df_nomatches = generate_rates_df(fs_nomatches, args.n_highest, args.library)
+    df_nomatches.to_json(output_nomatches, orient='records', indent=4)
+    print(f"Nomatches output saved to {output_nomatches}")
+
+    # Load the other pipeline metrics
+    df_po = pd.read_json(po_results)
 
     #pdb.set_trace()
 
-    items = ['PO_baseline_peak_error', 'PO_dt_ground_rmse', 'PO_rt_ground_rmse', 'PO_dt_ground_fit', 'PO_rt_ground_fit', 'PO_rmses_sum']
+    # Merge nomatches with the other pipeline metrics
+    df_merged_nomatches = pd.merge(df_nomatches, df_po, how="left", left_on=["name_rt-group", "pH", "library"], right_on=["name_rt-group", "pH", "library"])
 
-    for item in items:
-        if not df_merged.empty:
-            df_merged[item] = (df_merged[item + "_pH6"] + df_merged[item + "_pH9"]) / 2
+    #pdb.set_trace()
 
-    if not df_merged.empty:
-        df_merged["PO_total_score"] = df_merged["PO_total_score"] / 2
+    # Select only data from pH6, drop duplicated timepoints
+    df_merged_nomatches.rename({"timepoints_x": "timepoints"}, axis=1, inplace=True)
+    df_merged_nomatches.drop(labels="timepoints_y", axis=1, inplace=True)
+    df_merged_nomatches = df_merged_nomatches.query("pH == 'pH6'").reset_index(drop=True)
 
-    # Concatenate dataframes
-    df_unfiltered = pd.concat([df_unmerged, df_merged]).reset_index(drop=True)
+    df_merged_nomatches = process_dataframe_unmerged(df_merged_nomatches)
 
-    # Populate with metrics
-    df_unfiltered["n_exch_res"] = df_unfiltered["free_energy"].apply(lambda x: len(x))
+    df_merged_nomatches.to_json(output_po_nomatches, orient='records', indent=4)
+    print(f"Merged nomatches output saved to {output_po_nomatches}")
 
-    df_unfiltered["n_measurable_obs_rates"] = df_unfiltered.apply(
-        lambda x: np.max(np.where(
-            (np.exp(x['rates_ci_95']) - np.exp(x['rates_ci_5'])) / np.abs(np.exp(x['rates_mean'])) < 1
-        )[0]) + 1 if np.any(
-            (np.exp(x['rates_ci_95']) - np.exp(x['rates_ci_5'])) / np.abs(np.exp(x['rates_mean'])) < 1
-        ) else 0, axis=1
-    )
+    # Optionally process matches if --merge is specified
+    if args.merge:
+        fs_matches = sorted(glob.glob(f"{rate_fit_output_folder}/dG_*/*/*pickle"))
+        df_matches = generate_rates_df_with_merge(fs_matches, args.n_highest, args.library)
+        df_matches.to_json(output_matches, orient='records', indent=4)
+        print(f"Matches output saved to {output_matches}")
 
+        #pdb.set_trace()
 
-    df_unfiltered["pos_max_measurable_rate"] = df_unfiltered.apply(
-        lambda x: np.max(np.where(
-            (np.exp(x['rates_ci_95']) - np.exp(x['rates_ci_5'])) / np.abs(np.exp(x['rates_mean'])) < 1
-        )[0]) if np.any(
-            (np.exp(x['rates_ci_95']) - np.exp(x['rates_ci_5'])) / np.abs(np.exp(x['rates_mean'])) < 1
-        ) else 0, axis=1
-    )
+        # Merge matches with the other pipeline metrics
+        df_merged_pH6 = pd.merge(df_matches.drop(labels=["name_rt-group"], axis=1),
+                                 df_po.query("pH == 'pH6'").drop(labels=["pH", "timepoints"], axis=1),
+                                 left_on=["name_rt-group_pH6", "library"],
+                                 right_on=["name_rt-group", "library"],
+                                 how="left")
 
-    df_unfiltered['n_measurable_intrinsic_rates'] = df_unfiltered.apply(
-        lambda x: np.sum(
-            (np.array(x['intrinsic_rates']) < 1) & (np.array(x['intrinsic_rates']) > 0)
-        ), axis=1)
+        new_cols_pH6 = [i + "_pH6" for i in df_merged_pH6.keys()[len(df_matches.drop(labels=["name_rt-group"], axis=1).columns):]]
+        df_merged_pH6.columns = df_matches.drop(labels=["name_rt-group"], axis=1).columns.tolist() + new_cols_pH6
 
+        df_merged_pH6_pH9 = pd.merge(df_merged_pH6,
+                                     df_po.query("pH == 'pH9'").drop(labels=["pH", "timepoints"], axis=1),
+                                     left_on=["name_rt-group_pH9", "library"],
+                                     right_on=["name_rt-group", "library"],
+                                     how="left")
 
+        new_cols_pH6_pH9 = [i + "_pH9" for i in df_merged_pH6_pH9.keys()[len(df_merged_pH6.columns):]]
+        df_merged_pH6_pH9.columns = df_merged_pH6.columns.tolist() + new_cols_pH6_pH9
 
-    df_unfiltered['tp1_back_centroid'] = ((np.array([i[1] - i[0] for i in df_unfiltered.centroids_corr]) < 0) | (np.array([i[2] - i[0] for i in df_unfiltered.centroids_corr]) < 0))
+        print(f"Duplicated columns: {df_merged_pH6_pH9.columns[df_merged_pH6_pH9.columns.duplicated()]}")
+        df_merged_pH6_pH9 = df_merged_pH6_pH9.loc[:, ~df_merged_pH6_pH9.columns.duplicated(keep='first')]
 
+        df_merged_pH6_pH9 = process_dataframe_merged(df_merged_pH6_pH9)
 
-    df_unfiltered["ratio_n_measurable_obs_rates_n_exch"] = df_unfiltered["n_measurable_obs_rates"] / df_unfiltered["n_exch_res"]
-    df_unfiltered['ratio_n_measurable_intrinsic_rates_n_exch'] = df_unfiltered['n_measurable_intrinsic_rates']/df_unfiltered['n_exch_res']
-
-    df_unfiltered = process_ex1_metrics(df_unfiltered)
-
-    #### finish populating with metrics
-
-    df_unfiltered.to_json(output_unfiltered)
-
-    # Define filters
-    base_filters = "PO_baseline_peak_error < 4 & max_idotp > 0.99 & ~tp1_back_centroid" # max_qvalue < 0.024
-
-    filters_unmerged_too_fast = "saturation_abs_diff_pH6 < 2 & rate_fitting_rmse_percentile_90 < 0.3 & backexchange_range < 0.1 & backexchange_final_tp < 0.45 & backexchange_final_tp > 0.1 & delta_mass_avg < 0.07 & (slowest_rate > -4.5 | ratio_n_measurable_obs_rates_n_exch <= 0.20 | dg_mean < 2)"
-
-    filters_unmerged = "saturation_abs_diff_pH6 < 2 & rate_fitting_rmse_percentile_90 < 0.3 & backexchange_range < 0.1 & backexchange_final_tp < 0.45 & backexchange_final_tp > 0.1 & n_tp_stable_res > 4 & rate_fitting_rmse_most_stable < 0.20 & rate_fitting_rmse_before_full_deuteration < 0.2 & rates_mean_gap_3 < 2 & rates_mean_gap_5 < 3 & delta_mass_avg < 0.07 & ratio_n_measurable_obs_rates_n_exch > 0.20 & slowest_rate < -4.5 & slowest_rate > -11.5 & dg_mean > 2"
-
-    filters_merged_measurable = "saturation_abs_diff_pH9 < 2 & rate_fitting_rmse_percentile_90 < 0.3 & backexchange_range < 0.1 & backexchange_final_tp < 0.45 & backexchange_final_tp > 0.1 & slowest_rate < -4.5 & n_tp_stable_res > 4 & rate_fitting_rmse_most_stable < 0.20 & rate_fitting_rmse_before_full_deuteration < 0.2 & rates_mean_gap_3 < 2 & rates_mean_gap_5 < 3 & delta_mass_avg < 0.07 & tp_overlap_count > 1 & overlap_mass_diff < 2 & ratio_n_measurable_obs_rates_n_exch > 0.20 & dg_mean > 2"
-
-    filters_merged_not_fully_deuterated = "saturation_abs_diff_pH9 > 2 & tp_overlap_count > 1 & overlap_mass_diff < 2 & rates_mean_gap_3 < 2 & rates_mean_gap_5 < 3 & rate_fitting_rmse_percentile_90 < 0.3 & delta_mass_max_abs < 0.07 & slowest_rate < -17 & ratio_n_measurable_obs_rates_n_exch > 0.20"
-
-
-    # Filter and print results
-    print("Too fast unmerged")
-    set_0 = set(df_unfiltered.query(f"{base_filters} & {filters_unmerged_too_fast}").sequence)
-    print(len(df_unfiltered.query(f"{base_filters}  & {filters_unmerged_too_fast}")), len(set_0))
-
-    print("Measurable unmerged")
-    set_1 = set(df_unfiltered.query(f"{base_filters} & {filters_unmerged}").sequence)
-    print(len(df_unfiltered.query(f"{base_filters} & {filters_unmerged}")), len(set_1))
-
-    print("Measurable merged")
-    set_2 = set(df_unfiltered.query(f"{base_filters} & {filters_merged_measurable}").sequence)
-    print(len(df_unfiltered.query(f"{base_filters} & {filters_merged_measurable}")), len(set_2))
-
-    print("Not fully deuterated merged")
-    set_3 = set(df_unfiltered.query(f"{base_filters} & {filters_merged_not_fully_deuterated}").sequence)
-    print(len(df_unfiltered.query(f"{base_filters} & {filters_merged_not_fully_deuterated}")), len(set_3))
-
-    print("Total unique sequences")
-    print(len(set_0.union(set_1).union(set_2).union(set_3)))
-
-    df_0 = df_unfiltered.query(f"{base_filters} & {filters_unmerged_too_fast}").reset_index(drop=True).copy()
-    df_0["group"] = "group_0: unmeasurable unmerged"
-
-    df_1 = df_unfiltered.query(f"{base_filters}  & {filters_unmerged}").reset_index(drop=True).copy()
-    df_1["group"] = "group_1: measurable unmerged"
-
-    df_2 = df_unfiltered.query(f"{base_filters} & {filters_merged_measurable}").reset_index(drop=True).copy()
-    df_2["group"] = "group_2: measurable merged"
-
-    df_3 = df_unfiltered.query(f"{base_filters} & {filters_merged_not_fully_deuterated}").reset_index(drop=True).copy()
-    df_3["group"] = "group_3: not fully deuterated merged"
-
-    df_filtered = pd.concat([df_0, df_1, df_2, df_3]).reset_index(drop=True)
-    print(f"Total rows in filtered data: {len(df_filtered)} \n # of unique sequences: {len(set(df_filtered.sequence))} ")
-    df_filtered.to_json(output_filtered)
-
-    df_deduplicated = df_filtered.sort_values('PO_total_score').drop_duplicates('sequence').query("~ex1_either").reset_index(drop=True)
-    df_deduplicated.to_json(output_deduplicated)
+        df_merged_pH6_pH9.to_json(output_po_matches, orient='records', indent=4)
+        print(f"Merged matches output saved to {output_po_matches}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process JSON files and filter data.')
-    parser.add_argument('-p', '--prefix', type=str, default=None, help='Prefix to preserve mapping between input and output files')
-
-    args = parser.parse_args()
-    main(args)
+    main()
