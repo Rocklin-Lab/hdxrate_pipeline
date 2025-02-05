@@ -6,9 +6,9 @@ This pipeline processes HDX MS outputs from `mhdx-pipeline` (https://github.com/
 ### **Folder Organization** (for dual-pH experiments)
 ```
 {library_name}/
-  ├── {date-of-experiment}_{library_name}_pH6/
+  ├── {date_ph6_data}_{library_name}_pH6/
   │   ├── {mhdx-pipeline}/
-  ├── {date-of-experiment}_{library_name}_pH9/
+  ├── {date_ph9_data}_{library_name}_pH9/
       ├── {mhdx-pipeline}/
 ```
 
@@ -31,7 +31,7 @@ python -m pip install ./hxrate-tools
 ### **3. Prepare Config File**
 Copy the config file to your working directory:
 ```bash
-cp {path-to-hdxrate-pipeline}/config.yml {path-to-{library_name}}
+cp {path-to}/hdxrate-pipeline/config.yml {path-to}/{library_name}
 ```
 
 ### **4. Organize Data**
@@ -42,8 +42,8 @@ cp {library_name}/{date-of-experiment}_{library_name}_pH6/{mhdx-pipeline}/resour
 For **dual-pH** experiments, concatenate JSON files:
 ```bash
 python {path-to}/hdxrate-pipeline/auxiliar/concatenate_dataframes.py \
-    {path-to-first-consolidated_results.json} \
-    {path-to-second-consolidated_results.json} \
+    {library_name}/{date_ph6_data}_{library_name}_pH6/{mhdx-pipeline}/resources/10_ic_time_series/consolidated_results.json \
+    {library_name}/{date_ph9_data}_{library_name}_pH9/{mhdx-pipeline}/resources/10_ic_time_series/consolidated_results.json \
     --output {date_ph6_data}_{date_ph9_data}_po_results.json
 ```
 **Important:** Preserve the prefix `{date_ph6_data}_{date_ph9_data}_po_results.json` for post-processing.
@@ -57,8 +57,8 @@ path_to_repo: "{path-to}/hdxrate-pipeline"
 path_to_filtered_data: "{path-to}/{library}/{date_ph6_data}_{date_ph9_data}_po_results.json"
 library: "{library-name}"  # Must match exactly in consolidated results
 output_dirpath: "{date_ph6_data}_{date_ph9_data}_rate_fit_output"
-low_ph_library_info: "{path-to}/{library_name}/{date-of-experiment}_{library_name}_pH6/mhdx-pipeline/resources/7_idotp_filter/checked_library_info.json"
-high_ph_library_info: "{path-to}/{library_name}/{date-of-experiment}_{library_name}_pH9/resources/7_idotp_filter/checked_library_info.json"
+low_ph_library_info: "{path-to}/{library_name}/{date_ph6_data}_{library_name}_pH6/mhdx-pipeline/resources/7_idotp_filter/checked_library_info.json"
+high_ph_library_info: "{path-to}/{library_name}/{date_ph9_data}_{library_name}_pH9/mhdx-pipeline/resources/7_idotp_filter/checked_library_info.json"
 ```
 
 ### **2. Run the Snakemake Workflow**
@@ -77,7 +77,7 @@ snakemake -s {path-to}/hxrate_pipeline/snakefiles/2_Snakefile_twopHs_nomatches -
 snakemake -s {path-to}/hxrate_pipeline/snakefiles/3_Snakefile_twopHs_merge -j 1000 --keep-going \
     --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
 ```
-**Note:** If using only pH6 data, replace `twopHs` with `singlepH` in the Snakefile names.
+**Note:** If using only pH6 data, replace `twopHs` with `singlepH` in the Snakefile names. Customize `--cluster` specifications for your cluster, or omit in case you are using a local computer
 
 #### **Step 4: Consolidate Results**
 ```bash
