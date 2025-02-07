@@ -63,7 +63,14 @@ high_ph_d2o_pur: 0.95
 merge_rt_window: 1.0
 
 # saturate mass rate threshold to check if the path has reached maximum deuteration
-saturation_mass_rate: 0.03
+saturation_mass_rate: 1.0
+
+#backexchange correction parameters
+# backexchange correction bool
+backexchange_correction: True
+rate_tol: 0.06
+min_num_points: 5
+change_rate_threshold: 0.02
 
 
 # backexchange bounds for correlation
@@ -76,13 +83,7 @@ backexchange_up_bound: 0.45
 
 ##########################################
 ##########################################
-#backexchange correction parameters
 
-# backexchange correction bool
-backexchange_correction: True
-rate_tol: 0.06
-min_num_points: 5
-change_rate_threshold: 0.02
 
 ##########################################
 ##########################################

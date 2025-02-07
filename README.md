@@ -107,23 +107,23 @@ change_rate_threshold: 0.1  # Threshold for mass rate change
 
 ### **Experimental Parameters**
 ```yaml
-d2o_fraction: 0.95
-d2o_purity: 0.95
+d2o_fraction: 0.90 # sample dilution into deuterated buffer 1 sample : 9 d2o buffer
+d2o_purity: 0.95 # buffer D2O purity
 ```
 
 ### **Rate Fitting Parameters**
 ```yaml
-adjust_backexchange: true  # Adjust if slowest rate is 1.6x slower
-sample_backexchange: true  # Sample backexchange during fitting
+adjust_backexchange: True  # Adjust if slowest rate is 1.6x slower
+sample_backexchange: False  # Sample backexchange during fitting
 num_chains: 4  # MCMC chains for rate fitting
-num_warmups: 1000  # MCMC warmup iterations
-num_samples: 5000  # Number of samples for MCMC
+num_warmups: 100  # MCMC warmup iterations
+num_samples: 250  # Number of samples for MCMC
 ```
 
 ### **Delta G Calculation Parameters**
 ```yaml
 pH: 6.0  # Experiment pH
-temp: 298  # Temperature in Kelvin
+temp: 293  # Temperature in Kelvin
 nterm: ""  # N-terminal addition (optional)
 cterm: ""  # C-terminal addition (optional)
 net_charge_corr: true  # Use net charge correction
