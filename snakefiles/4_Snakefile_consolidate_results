@@ -11,9 +11,10 @@ consolidate_rate_fitting_script = path_to_repo + "/auxiliar/consolidate_rate_fit
 filter_rate_fitting_script = path_to_repo + "/auxiliar/filter_rate_fit_results.py"
 
 rule all:
-    "{output_dirpath}/consolidated_results/unfiltered.json",
-    "{output_dirpath}/consolidated_results/filtered.json",
-    "{output_dirpath}/consolidated_results/deduplicated.json",
+    input:
+        "{output_dirpath}/consolidated_results/unfiltered.json",
+        "{output_dirpath}/consolidated_results/filtered.json",
+        "{output_dirpath}/consolidated_results/deduplicated.json",
 
 
 if config['single_pH']:
