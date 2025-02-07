@@ -188,7 +188,7 @@ def calculate_metrics(df):
 
     measurable_mask = lambda x: (np.exp(x['rates_ci_95']) - np.exp(x['rates_ci_5'])) / np.abs(np.exp(x['rates_mean'])) < 1
 
-    df['n_measurable_obs_rates_corr'] = df.apply(
+    df['n_measurable_obs_rates'] = df.apply(
         lambda x: np.max(np.where(measurable_mask(x) & (np.array(x['rates_mean']) < -3.45))[0]) + 1
         if np.any(measurable_mask(x) & (np.array(x['rates_mean']) < -3.45)) else 0, axis=1)
 
