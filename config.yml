@@ -16,6 +16,7 @@ path_to_filtered_data: "/scratch/ajf4103/HX_pipeline/mutants/mutants_4/consolida
 
 library: "mutants04" # this name should correspond to the library value in the consolidated_results.json file
 
+single_pH : False # if you have only one pH condition, set this to True
 ###############################################
 
 # output directory path
