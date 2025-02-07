@@ -100,9 +100,9 @@ snakemake -s {path-to}/hxrate_pipeline/snakefiles/4_Snakefile_consolidate_result
 ### **Backexchange Correction Parameters**
 ```yaml
 backexchange_correction: true  # Enable backexchange correction
-rate_tol: 0.05  # Max tolerance for mass change
+rate_tol: 0.06  # Max tolerance for mass change
 min_num_points: 5  # Minimum required data points
-change_rate_threshold: 0.1  # Threshold for mass rate change
+change_rate_threshold: 0.2  # Threshold for mass rate change
 ```
 
 ### **Experimental Parameters**
