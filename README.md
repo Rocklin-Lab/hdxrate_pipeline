@@ -83,9 +83,16 @@ snakemake -s {path-to}/hxrate_pipeline/snakefiles/3_Snakefile_twopHs_merge -j 10
 
 #### **Step 4: Consolidate Results**
 ```bash
-python {path-to}/hxrate_pipeline/auxiliar/consolidate_rate_fit_results.py -l {library-name} -m -p {date_ph6_data}_{date_ph9_data}_ 
+snakemake -s {path-to}/hxrate_pipeline/snakefiles/4_Snakefile_consolidate_results -j 1000 --keep-going \
+    --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
 ```
-**Omit `-m`** if only pH6 data is available.
+
+### **Expected final results**
+```bash
+{output_dirpath}/consolidated_results/unfiltered.json : Unfiltered rate fitting results
+{output_dirpath}/consolidated_results/filtered.json : All sequences passing filtering criteria
+{output_dirpath}/consolidated_results/deduplicated.json : Single best results per sequence
+```
 
 ---
 ## **Advanced options configuration file (`config.yml`)**
