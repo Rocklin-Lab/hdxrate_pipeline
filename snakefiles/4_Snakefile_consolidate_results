@@ -1,0 +1,60 @@
+configfile: "config.yaml"
+
+path_to_repo = config["path_to_repo"]
+library = config['library']
+
+path_to_po_results = config['path_to_filtered_data']
+output_dirpath = config['output_dirpath']
+
+
+consolidate_rate_fitting_script = path_to_repo + "/auxiliar/consolidate_rate_fit_results.py"
+filter_rate_fitting_script = path_to_repo + "/auxiliar/filter_rate_fit_results.py"
+
+rule all:
+    "consolidated_results/unfiltered.json",
+    "consolidated_results/filtered.json",
+    "consolidated_results/deduplicated.json",
+
+
+if config['single_pH']:
+    rule consolidate_rate_fitting_results:
+        input:
+            path_to_po_results,
+            output_dirpath,
+        output:
+            "{rate_output_dir}/consolidated_results/PO_and_RateFittingResults_unmerged.json"
+        shell:
+            "python {consolidate_rate_fitting} -l {library} --po_results {path_to_po_results} --rate_output_dir {output_dirpath}"
+
+    rule filter_rate_fitting_results:
+        input:
+            "{rate_output_dir}/consolidated_results/PO_and_RateFittingResults_unmerged.json",
+        output:
+            "{rate_output_dir}/consolidated_results/unfiltered.json",
+            "{rate_output_dir}/consolidated_results/filtered.json",
+            "{rate_output_dir}/consolidated_results/deduplicated.json"
+        shell:
+            "python {filter_rate_fitting_script} -s {input[0]} -ou {output[0]} -of {output[1]} -od {output[2]}
+
+else:
+    rule consolidate_rate_fitting_results:
+        input:
+            path_to_po_results,
+            output_dirpath,
+        output:
+            "{rate_output_dir}/consolidated_results/PO_and_RateFittingResults_unmerged.json",
+            "{rate_output_dir}/consolidated_results/PO_and_RateFittingResults_merged.json"
+        shell:
+            "python {consolidate_rate_fitting_script} -l {library} --po_results {path_to_po_results} --rate_output_dir {output_dirpath} -m"
+
+    rule filter_rate_fitting_results:
+        input:
+            "{rate_output_dir}/consolidated_results/PO_and_RateFittingResults_unmerged.json",
+            "{rate_output_dir}/consolidated_results/PO_and_RateFittingResults_merged.json"
+        output:
+            "{rate_output_dir}/consolidated_results/unfiltered.json",
+            "{rate_output_dir}/consolidated_results/filtered.json",
+            "{rate_output_dir}/consolidated_results/deduplicated.json"
+        shell:
+            "python {filter_rate_fitting_script} -s {input[0]} -t {input[1]} -ou {output[0]} -of {output[1]} -od {output[2]}
+
