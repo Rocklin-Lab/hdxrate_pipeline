@@ -35,7 +35,7 @@ if config['single_pH']:
             "{output_dirpath}/consolidated_results/filtered.json",
             "{output_dirpath}/consolidated_results/deduplicated.json"
         shell:
-            "python {filter_rate_fitting_script} -s {input[0]} -ou {output[0]} -of {output[1]} -od {output[2]}
+            "python {filter_rate_fitting_script} -s {input[0]} -ou {output[0]} -of {output[1]} -od {output[2]}"
 
 else:
     rule consolidate_rate_fitting_results:
@@ -57,5 +57,5 @@ else:
             "{output_dirpath}/consolidated_results/filtered.json",
             "{output_dirpath}/consolidated_results/deduplicated.json"
         shell:
-            "python {filter_rate_fitting_script} -s {input[0]} -t {input[1]} -ou {output[0]} -of {output[1]} -od {output[2]}
+            "python {filter_rate_fitting_script} -s {input[0]} -t {input[1]} -ou {output[0]} -of {output[1]} -od {output[2]}"
 
