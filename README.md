@@ -126,7 +126,7 @@ pH: 6.0  # Experiment pH
 temp: 293  # Temperature in Kelvin
 nterm: ""  # N-terminal addition (optional)
 cterm: ""  # C-terminal addition (optional)
-net_charge_corr: true  # Use net charge correction
+net_charge_corr: True  # Use net charge correction
 ```
 
 ### **Merging Parameters**
@@ -139,5 +139,5 @@ merge_rt_window: 1.0  # Window to merge proteins with matching names in minutes
 - Ensure proper paths are set before running Snakemake commands.
 - Adjust computational resources (`--mem=4GB`, `-t 04:00:00`) based on your HPC setup.
 - For troubleshooting, check Snakemake logs and intermediate outputs.
-- For questions, contact the authors.
+- For questions, contact `ajrferrari@gmail.com` or open an issue in the repository.
 
