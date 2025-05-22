@@ -131,15 +131,37 @@ def main():
 
     fs_nomatches = sorted(glob.glob(os.path.join(args.rate_output_dir, "nomatches", "dG", "*", "*", "*pickle")))
     df_nomatches = generate_rates_df(fs_nomatches, args.n_highest, args.library)
+    
     df_po = pd.read_json(args.po_results)
+    df_po_ph6 = df_po.query('pH == "pH6"').reset_index(drop=True)
+    df_po_ph9 = df_po.query('pH == "pH9"').reset_index(drop=True)
 
-    df_merged_nomatches = pd.merge(df_nomatches, df_po, how="left", on=["name_rt-group", "pH", "library"])
-    df_merged_nomatches.rename(columns={"timepoints_x": "timepoints"}, inplace=True)
-    df_merged_nomatches.drop(columns="timepoints_y", inplace=True)
-    df_merged_nomatches = df_merged_nomatches.query("pH == 'pH6'").reset_index(drop=True)
+    # Create renaming dictionary
+    rename_dict_ph6 = {
+        col: f"{col}_pH6" for col in df_po_ph6.columns
+        if col not in ['pH', 'library']
+    }
+    
+    # Create renaming dictionary
+    rename_dict_ph9 = {
+        col: f"{col}_pH9" for col in df_po_ph9.columns
+        if col not in ['pH', 'library']
+    }
 
-    df_merged_nomatches = process_dataframe_unmerged(df_merged_nomatches)
-    df_merged_nomatches.to_json(os.path.join(output_dir, "PO_and_RateFittingResults_unmerged.json"), orient='records', indent=4)
+    # Apply renaming
+    df_po_ph6 = df_po_ph6.rename(columns=rename_dict_ph6)
+    df_po_ph9 = df_po_ph9.rename(columns=rename_dict_ph9)
+
+
+    df_merged_nomatches = pd.merge(df_nomatches, 
+                                   df_po_ph6,
+                                   how="left", 
+                                   left_on=["name_rt-group", "pH", "library"],
+                                   right_on=["name_rt-group_pH6", "pH", "library"]).drop('name_rt-group', axis=1)
+
+
+    df_merged_nomatches_processed = process_dataframe_unmerged(df_merged_nomatches)
+    df_merged_nomatches_processed.to_json(os.path.join(output_dir, "PO_and_RateFittingResults_unmerged.json"), orient='records', indent=4)
     print(f"Merged nomatches output saved to {os.path.join(output_dir, 'PO_and_RateFittingResults_unmerged.json')}")
 
     if args.merge:
