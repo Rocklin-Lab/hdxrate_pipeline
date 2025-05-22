@@ -7,14 +7,19 @@ from scipy.stats import percentileofscore
 
 import pdb
 
+def process_ex1_metrics(df_original, ph_condition='both'):
 
-def process_ex1_metrics(df_original):
+    assert ph_condition in ['both', 'pH6'], "ph_condition must be 'both' or 'pH6'"
+
     # Prepare initial dataframe
-    df = df_original[["name", "library", "sequence", "name_rt-group_pH6", "name_rt-group_pH9", "file_path"]].copy()
+    core_columns = ["name", "library", "sequence", "name_rt-group_pH6", "file_path"]
+    if ph_condition == 'both':
+        core_columns.insert(4, "name_rt-group_pH9")
+    df = df_original[core_columns].copy()
+
     out = []
 
-    # Load and process pickle files
-    for i, line in df.iterrows():
+    for _, line in df.iterrows():
         fp = line["file_path"]
         row = line.tolist()
         with open(fp, 'rb') as file:
@@ -27,22 +32,16 @@ def process_ex1_metrics(df_original):
             [x['rmse'] for x in fe_pickle['hxrate_output']['exp_dist_gauss_fit']],
             [x['centroid'] for x in fe_pickle['hxrate_output']['pred_dist_guass_fit']],
             fe_pickle['hxrate_output']['backexchange'],
-#            fe_pickle['hxrate_output']['timepoints'],
             fe_pickle['hxrate_output']['tp_ind_label'],
-#            fe_pickle['hxrate_output']['timepoints_sort_indices'],
             fe_pickle['hxrate_output']['merge_exp'],
         ])
         out.append(row)
 
-    # Build intermediate dataframe
-    rdf = pd.DataFrame(out, columns=[
-        'name', 'library', 'sequence', 'name_rt-group_pH6', 'name_rt-group_pH9', 'file_path',
+    columns = core_columns + [
         'exp_distribution', 'pred_distribution', 'fit_width', 'exp_width', 'exp_rmse',
-        'fit_center', 'backexchange', # 'timepoints',
-        'tp_ind_label',
-        #'timepoints_sort_indices',
-        'merge_exp'
-    ])
+        'fit_center', 'backexchange', 'tp_ind_label', 'merge_exp'
+    ]
+    rdf = pd.DataFrame(out, columns=columns)
 
     # Add computed metrics
     rdf['savgol'] = [savgol_filter(expdata, window_length=5, polyorder=3) for expdata in rdf['exp_width']]
@@ -53,12 +52,8 @@ def process_ex1_metrics(df_original):
     rdf['fit_fraction_end'] = [true_center[np.argmax(fit_ratio)] / true_center[-1] for true_center, fit_ratio in zip(rdf['true_center'], rdf['fit_ratio'])]
     rdf['max_ratio'] = [max(x) for x in rdf['fit_ratio']]
 
-    # Merge processed data with the original dataframe
-    df = pd.merge(df_original, rdf, on=['name', 'library', 'sequence', 'name_rt-group_pH6', 'name_rt-group_pH9', 'file_path'], how="left")
+    df = pd.merge(df_original, rdf, on=core_columns, how="left")
 
-    #pdb.set_trace()
-
-    # Define helper function for true time calculation
     def true_time(timepoints, tp_ind_label, merge_factor_mean):
         if pd.isna(merge_factor_mean):
             return timepoints
@@ -67,37 +62,23 @@ def process_ex1_metrics(df_original):
         scalefac[scale] = 10 ** merge_factor_mean
         return timepoints / scalefac
 
-    # Add more computed columns
     df['true_time'] = [true_time(tp, lbl, mf) for tp, lbl, mf in zip(df['timepoints'], df['tp_ind_label'], df['merge_exp'])]
     df['log_true_time'] = [[np.log10(a) if a != 0 else 0 for a in x] for x in df['true_time']]
-
-    df['pH6']=[np.array(['pH6' in a for a in x]) for x in df['tp_ind_label'].values]
+    df['pH6'] = [np.array(['pH6' in a for a in x]) for x in df['tp_ind_label'].values]
 
     df['avg_fit_ratio_pH6'] = [np.average(x[pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
     df['median_fit_ratio_pH6'] = [np.median(x[pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
     df['max_fit_ratio_pH6'] = [max(x[pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
     df['max_over_median_ratio_pH6'] = [max(x[pH6]) / np.median(x[pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
 
-    df['avg_fit_ratio_pH9'] = [np.average(x[~pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
-    df['median_fit_ratio_pH9'] = [np.median(x[~pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
-    df['max_fit_ratio_pH9'] = [max(x[~pH6], default=np.nan) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
-    df['max_over_median_ratio_pH9'] = [max(x[~pH6], default=np.nan) / np.median(x[~pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
-
     df['progress'] = [(fit_center / (1.0 - backexchange)) / (fit_center[-1] / (1.0 - backexchange[-1])) for fit_center, backexchange in zip(df['fit_center'], df['backexchange'])]
     df['progress_pH6'] = [progress[pH6] for progress, pH6 in zip(df['progress'], df['pH6'])]
-    df['progress_pH9'] = [progress[~pH6] for progress, pH6 in zip(df['progress'], df['pH6'])]
-
-    df['ratio_window_pH6'] = [np.average(fit_ratio[pH6][(progress_pH6 > 0.80) & (progress_pH6 < 0.90)]) for fit_ratio, pH6, progress_pH6 in zip(df['fit_ratio'], df['pH6'], df['progress_pH6'])]
-    df['ratio_window_pH9'] = [np.average(fit_ratio[~pH6][(progress_pH9 > 0.80) & (progress_pH9 < 0.90)]) for fit_ratio, pH6, progress_pH9 in zip(df['fit_ratio'], df['pH6'], df['progress_pH9'])]
-
     df['progress_window2'] = [(progress > 0.65) & (progress < 0.95) for progress in df['progress']]
 
-    # EXP VS SMOOTH EXPERIMENTAL DISTRIBUTION
+    df['ratio_window_pH6'] = [np.average(fit_ratio[pH6][(progress_pH6 > 0.80) & (progress_pH6 < 0.90)]) for fit_ratio, pH6, progress_pH6 in zip(df['fit_ratio'], df['pH6'], df['progress_pH6'])]
 
-    df['obs_max_pH6'] = [np.argmax(np.array(exp_distribution)[pH6 & progress_window2],axis=1) for exp_distribution, pH6, progress_window2 in zip(df['exp_distribution'], df['pH6'], df['progress_window2'])]
-    df['obs_max_pH9'] = [np.argmax(np.array(exp_distribution)[~pH6 & progress_window2],axis=1) for exp_distribution, pH6, progress_window2 in zip(df['exp_distribution'], df['pH6'], df['progress_window2'])]
+    df['obs_max_pH6'] = [np.argmax(np.array(exp_distribution)[pH6 & progress_window2], axis=1) for exp_distribution, pH6, progress_window2 in zip(df['exp_distribution'], df['pH6'], df['progress_window2'])]
     df['fit_center_pH6'] = [fit_center[pH6 & progress_window2] for fit_center, pH6, progress_window2 in zip(df['fit_center'], df['pH6'], df['progress_window2'])]
-    df['fit_center_pH9'] = [fit_center[~pH6 & progress_window2] for fit_center, pH6, progress_window2 in zip(df['fit_center'], df['pH6'], df['progress_window2'])]
 
     df['fit_minus_obs_max_pH6'] = [np.max(fit_center - obs_max, initial=0) for fit_center, obs_max in zip(df['fit_center_pH6'], df['obs_max_pH6'])]
     df['fit_minus_obs_min_pH6'] = [np.min(fit_center - obs_max, initial=0) for fit_center, obs_max in zip(df['fit_center_pH6'], df['obs_max_pH6'])]
@@ -106,33 +87,44 @@ def process_ex1_metrics(df_original):
     df['fit_minus_obs_min_index_pH6'] = [np.argmin(list(fit_center - obs_max) + [0]) for fit_center, obs_max in zip(df['fit_center_pH6'], df['obs_max_pH6'])]
     df['fit_ahead_progress_pH6'] = [np.array(list(progress_pH6) + [0])[fit_minus_obs_max_index_pH6] for progress_pH6, fit_minus_obs_max_index_pH6 in zip(df['progress_pH6'], df['fit_minus_obs_max_index_pH6'])]
 
+    # EX1 criteria (pH6-only version)
+    ex1_width_criteria_pH6 = df.query('(ratio_window_pH6 > 1.25 & max_over_median_ratio_pH6 > 1.35)')
+    ex1_jump_criteria_pH6 = df.query('((fit_minus_obs_range_pH6 > 5) or (fit_minus_obs_min_pH6 < -2 and fit_minus_obs_max_pH6 > 2)) and fit_minus_obs_max_index_pH6 < fit_minus_obs_min_index_pH6 and fit_ahead_progress_pH6 < 0.9')
 
-    df['fit_minus_obs_max_pH9'] = [np.max(fit_center - obs_max, initial=0) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
-    df['fit_minus_obs_min_pH9'] = [np.min(fit_center - obs_max, initial=0) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
-    df['fit_minus_obs_range_pH9'] = [np.max(fit_center - obs_max, initial=0) - np.min(fit_center - obs_max, initial=0) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
-    df['fit_minus_obs_max_index_pH9'] = [np.argmax(list(fit_center - obs_max) + [0]) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
-    df['fit_minus_obs_min_index_pH9'] = [np.argmin(list(fit_center - obs_max) + [0]) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
-    df['fit_ahead_progress_pH9'] = [np.array(list(progress_pH9) + [0])[fit_minus_obs_max_index_pH9] for progress_pH9, fit_minus_obs_max_index_pH9 in zip(df['progress_pH9'], df['fit_minus_obs_max_index_pH9'])]
-
-    df['rate_fitting_rmse_percentile'] = [percentileofscore(df['rate_fitting_rmse_total'].values, x) for x in df['rate_fitting_rmse_total']]
-
-    # Add additional metrics as required for ex1 classification
-    ex1_width_criteria_pH6=df.query('(ratio_window_pH6 > 1.25 & max_over_median_ratio_pH6 > 1.35)')
-    ex1_width_criteria_pH9=df.query('(ratio_window_pH9 > 1.25 & max_over_median_ratio_pH9 > 1.35)')
-
-    # ex1_width_criteria_pH6=df.query('( max_over_median_ratio_pH6 > 1.4)')
-    # ex1_width_criteria_pH9=df.query('( max_over_median_ratio_pH9 > 1.4)')
-
-    ex1_jump_criteria_pH6=df.query('( ( (fit_minus_obs_range_pH6 > 5) | (fit_minus_obs_min_pH6 < -2 & fit_minus_obs_max_pH6 > 2) ) & fit_minus_obs_max_index_pH6 < fit_minus_obs_min_index_pH6 & fit_ahead_progress_pH6 < 0.9)')
-    ex1_jump_criteria_pH9=df.query('( ( (fit_minus_obs_range_pH9 > 5) | (fit_minus_obs_min_pH9 < -2 & fit_minus_obs_max_pH9 > 2) ) & fit_minus_obs_max_index_pH9 < fit_minus_obs_min_index_pH9 & fit_ahead_progress_pH9 < 0.9)')
-
-    df['ex1_width_criteria_pH6'] = [((x in ex1_width_criteria_pH6['name_rt-group_pH6'].values) and (y is not None)) for (x, y) in df[['name_rt-group_pH6','pH']].values]
-    df['ex1_width_criteria_pH9'] = [((x in ex1_width_criteria_pH9['name_rt-group_pH9'].values) and (y is None)) for (x, y) in df[['name_rt-group_pH9','pH']].values]
-    df['ex1_jump_criteria_pH6'] = [((x in ex1_jump_criteria_pH6['name_rt-group_pH6'].values) and (y is not None)) for (x, y) in df[['name_rt-group_pH6','pH']].values]
-    df['ex1_jump_criteria_pH9'] = [((x in ex1_jump_criteria_pH9['name_rt-group_pH9'].values) and (y is None)) for (x, y) in df[['name_rt-group_pH9','pH']].values]
+    df['ex1_width_criteria_pH6'] = df['name_rt-group_pH6'].isin(ex1_width_criteria_pH6['name_rt-group_pH6'])
+    df['ex1_jump_criteria_pH6'] = df['name_rt-group_pH6'].isin(ex1_jump_criteria_pH6['name_rt-group_pH6'])
     df['ex1_pH6'] = df['ex1_width_criteria_pH6'] | df['ex1_jump_criteria_pH6']
-    df['ex1_pH9'] = df['ex1_width_criteria_pH9'] | df['ex1_jump_criteria_pH9']
-    df['ex1_either'] = df['ex1_pH6'] | df['ex1_pH9']
+
+    # pH9-specific computations only if available
+    if ph_condition == 'both':
+        df['avg_fit_ratio_pH9'] = [np.average(x[~pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
+        df['median_fit_ratio_pH9'] = [np.median(x[~pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
+        df['max_fit_ratio_pH9'] = [max(x[~pH6], default=np.nan) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
+        df['max_over_median_ratio_pH9'] = [max(x[~pH6], default=np.nan) / np.median(x[~pH6]) for x, pH6 in zip(df['fit_ratio'], df['pH6'])]
+
+        df['progress_pH9'] = [progress[~pH6] for progress, pH6 in zip(df['progress'], df['pH6'])]
+        df['ratio_window_pH9'] = [np.average(fit_ratio[~pH6][(progress_pH9 > 0.80) & (progress_pH9 < 0.90)]) for fit_ratio, pH6, progress_pH9 in zip(df['fit_ratio'], df['pH6'], df['progress_pH9'])]
+
+        df['obs_max_pH9'] = [np.argmax(np.array(exp_distribution)[~pH6 & progress_window2], axis=1) for exp_distribution, pH6, progress_window2 in zip(df['exp_distribution'], df['pH6'], df['progress_window2'])]
+        df['fit_center_pH9'] = [fit_center[~pH6 & progress_window2] for fit_center, pH6, progress_window2 in zip(df['fit_center'], df['pH6'], df['progress_window2'])]
+
+        df['fit_minus_obs_max_pH9'] = [np.max(fit_center - obs_max, initial=0) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
+        df['fit_minus_obs_min_pH9'] = [np.min(fit_center - obs_max, initial=0) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
+        df['fit_minus_obs_range_pH9'] = [np.max(fit_center - obs_max, initial=0) - np.min(fit_center - obs_max, initial=0) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
+        df['fit_minus_obs_max_index_pH9'] = [np.argmax(list(fit_center - obs_max) + [0]) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
+        df['fit_minus_obs_min_index_pH9'] = [np.argmin(list(fit_center - obs_max) + [0]) for fit_center, obs_max in zip(df['fit_center_pH9'], df['obs_max_pH9'])]
+        df['fit_ahead_progress_pH9'] = [np.array(list(progress_pH9) + [0])[fit_minus_obs_max_index_pH9] for progress_pH9, fit_minus_obs_max_index_pH9 in zip(df['progress_pH9'], df['fit_minus_obs_max_index_pH9'])]
+
+        ex1_width_criteria_pH9 = df.query('(ratio_window_pH9 > 1.25 & max_over_median_ratio_pH9 > 1.35)')
+        ex1_jump_criteria_pH9 = df.query('((fit_minus_obs_range_pH9 > 5) or (fit_minus_obs_min_pH9 < -2 and fit_minus_obs_max_pH9 > 2)) and fit_minus_obs_max_index_pH9 < fit_minus_obs_min_index_pH9 and fit_ahead_progress_pH9 < 0.9')
+
+        df['ex1_width_criteria_pH9'] = df['name_rt-group_pH9'].isin(ex1_width_criteria_pH9['name_rt-group_pH9'])
+        df['ex1_jump_criteria_pH9'] = df['name_rt-group_pH9'].isin(ex1_jump_criteria_pH9['name_rt-group_pH9'])
+        df['ex1_pH9'] = df['ex1_width_criteria_pH9'] | df['ex1_jump_criteria_pH9']
+        df['ex1_either'] = df['ex1_pH6'] | df['ex1_pH9']
+    else:
+        df['ex1_pH9'] = False
+        df['ex1_either'] = df['ex1_pH6']
 
     return df
 
@@ -151,10 +143,14 @@ def get_reg_coeff(df, col="centroids", n_last=5):
         lambda x: np.abs(x["saturation_pred_values"][-1] - x["saturation_pred_values"][-n_last]), axis=1)
 
 def get_concatenated_centroids(df):
-    df["centroids"] = df.apply(lambda x: x["centroids_pH6"] + x["centroids_pH9"][1:], axis=1)
+    if 'centroids_pH9' in df.keys().tolist():
+        print("centroids pH9 present. Concatenating...")
+        df["centroids"] = df.apply(lambda x: x["centroids_pH6"] + x["centroids_pH9"][1:], axis=1)
+    else:
+        print("Only pH6 centroids present. Just copying centroids_pH6")
+        df['centroids'] = df['centroids_pH6']
 
 def get_corrected_centroids(df):
-#    pdb.set_trace()
     df["centroids_corr"] = df.apply(lambda x: [x["centroids"][0]] + list(np.array(x["centroids"][1:]) / (1 - np.array(x["backexchange_per_tp"][1:]))), axis=1)
 
 def get_ph_indexes(df):
@@ -192,7 +188,6 @@ def fill_with_important_data_merged(df):
     print(f"Getting concatenated centroids - new column: centroids")
     get_concatenated_centroids(df)
     print(f"Getting backexchange corrected centroids - new column: centroids_corr")
-#    pdb.set_trace()
     get_corrected_centroids(df)
     print(f"Getting linear reg coeff based on dM/dt for the last 5 timepoints - new columns: saturation_ang_coeff, saturation_lin_coeff, and saturation_mse")
     get_reg_coeff(df, col="centroids_corr")
@@ -213,6 +208,8 @@ def fill_with_important_data_merged(df):
     return df
 
 def fill_with_important_data_unmerged(df):
+    print(f"Getting concatenated centroids - new column: centroids. pH6 only present, will copy centroids_pH6 to centroids")
+    get_concatenated_centroids(df)
 
     print(f"Getting backexchange corrected centroids - new column: centroids_corr")
     get_corrected_centroids(df)
@@ -331,9 +328,9 @@ def process_dataframe_unmerged(df):
     df["rates_mean_gap_3"] = df.apply(lambda x: x["rates_mean"][2] - x["rates_mean"][0], axis=1)
     df["rates_mean_gap_5"] = df.apply(lambda x: x["rates_mean"][4] - x["rates_mean"][0], axis=1)
 
-    df["RT"] = [float(i.split("_")[-1]) for i in df["name_rt-group"]]
+    df["RT"] = [float(i.split("_")[-1]) for i in df["name_rt-group_pH6"]]
 
-    df["PO_total_score_monobody"] = df[
+    df["PO_total_score_monobody_pH6"] = df[
         [i for i in df.keys() if "PO" in i and "delta" not in i and not "monobody" in i][1:-1]].sum(axis=1)
 
 
