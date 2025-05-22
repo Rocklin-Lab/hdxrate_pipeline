@@ -170,27 +170,21 @@ def main():
 
         df_merged_pH6 = pd.merge(
             df_matches.drop(columns=["name_rt-group"]),
-            df_po.query("pH == 'pH6'").drop(columns=["pH", "timepoints"]),
+            df_po_ph6.drop(columns=["pH"]),
             left_on=["name_rt-group_pH6", "library"],
-            right_on=["name_rt-group", "library"],
+            right_on=["name_rt-group_pH6", "library"],
             how="left"
         )
 
-        new_cols_pH6 = [col + "_pH6" for col in df_merged_pH6.columns[len(df_matches.columns)-1:]]
-        df_merged_pH6.columns = list(df_matches.drop(columns=["name_rt-group"]).columns) + new_cols_pH6
 
         df_merged_pH6_pH9 = pd.merge(
             df_merged_pH6,
-            df_po.query("pH == 'pH9'").drop(columns=["pH", "timepoints"]),
+            df_po_ph9.drop(columns=["pH"]),
             left_on=["name_rt-group_pH9", "library"],
-            right_on=["name_rt-group", "library"],
+            right_on=["name_rt-group_pH9", "library"],
             how="left"
         )
 
-        new_cols_pH9 = [col + "_pH9" for col in df_merged_pH6_pH9.columns[len(df_merged_pH6.columns):]]
-        df_merged_pH6_pH9.columns = list(df_merged_pH6.columns) + new_cols_pH9
-
-        df_merged_pH6_pH9 = df_merged_pH6_pH9.loc[:, ~df_merged_pH6_pH9.columns.duplicated()]
         df_merged_pH6_pH9 = process_dataframe_merged(df_merged_pH6_pH9)
 
         df_merged_pH6_pH9.to_json(os.path.join(output_dir, "PO_and_RateFittingResults_merged.json"), orient='records', indent=4)
