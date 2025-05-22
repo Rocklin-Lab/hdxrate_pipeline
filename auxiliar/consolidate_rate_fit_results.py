@@ -157,7 +157,7 @@ def main():
                                    df_po_ph6,
                                    how="left", 
                                    left_on=["name_rt-group", "pH", "library"],
-                                   right_on=["name_rt-group_pH6", "pH", "library"]).drop('name_rt-group', axis=1)
+                                   right_on=["name_rt-group_pH6", "pH", "library"]).drop('name_rt-group', axis=1).query('pH == "pH6"').reset_index(drop=True)
 
 
     df_merged_nomatches_processed = process_dataframe_unmerged(df_merged_nomatches)
