@@ -3,7 +3,7 @@
 # **HDX Rate Pipeline with Snakemake**
 
 ## **Overview**
-This pipeline processes HDX MS outputs from `mhdx-pipeline` (https://github.com/Rocklin-Lab/mhdx-pipeline) and computes exchange rates and opening energy distributions. It supports single-pH (pH6) and dual-pH (pH6 & pH9) experiments.
+This pipeline processes HDX MS outputs from `mhdx_pipeline` (https://github.com/Rocklin-Lab/mhdx_pipeline) and computes exchange rates and opening energy distributions. It supports single-pH (pH6) and dual-pH (pH6 & pH9) experiments.
 
 ### **Folder Organization** (for dual-pH experiments)
 ```
@@ -19,8 +19,8 @@ This pipeline processes HDX MS outputs from `mhdx-pipeline` (https://github.com/
 
 ### **1. Clone Repositories**
 ```bash
-git clone https://github.com/Rocklin-Lab/hdxrate-tools.git
-git clone https://github.com/Rocklin-Lab/hdxrate-pipeline.git
+git clone https://github.com/Rocklin-Lab/hdxrate_tools.git
+git clone https://github.com/Rocklin-Lab/hdxrate_pipeline.git
 ```
 
 ### **2. Create and Activate Environment**
@@ -33,7 +33,7 @@ python -m pip install ./hxrate-tools
 ### **3. Prepare Config File**
 Copy the config file to your working directory:
 ```bash
-cp {path-to}/hdxrate-pipeline/config.yml {path-to}/{library_name}
+cp {path-to}/hdxrate_pipeline/config.yml {path-to}/{library_name}
 ```
 
 ### **4. Organize Data**
@@ -44,11 +44,10 @@ cp {library_name}/{date-of-experiment}_{library_name}_pH6/{mhdx-pipeline}/resour
 For **dual-pH** experiments, concatenate JSON files:
 ```bash
 python {path-to}/hdxrate-pipeline/auxiliar/concatenate_dataframes.py \
-    {library_name}/{date_ph6_data}_{library_name}_pH6/{mhdx-pipeline}/resources/10_ic_time_series/consolidated_results.json \
-    {library_name}/{date_ph9_data}_{library_name}_pH9/{mhdx-pipeline}/resources/10_ic_time_series/consolidated_results.json \
-    --output {date_ph6_data}_{date_ph9_data}_po_results.json
+    {library_name}/{date_ph6_data}_{library_name}_pH6/{mhdx_pipeline}/resources/10_ic_time_series/consolidated_results.json \
+    {library_name}/{date_ph9_data}_{library_name}_pH9/{mhdx_pipeline}/resources/10_ic_time_series/consolidated_results.json \
+    --output consolidated_po_results.json
 ```
-**Important:** Preserve the prefix `{date_ph6_data}_{date_ph9_data}_po_results.json` for post-processing.
 
 ---
 ## **Running the Pipeline**
@@ -56,11 +55,11 @@ python {path-to}/hdxrate-pipeline/auxiliar/concatenate_dataframes.py \
 Modify these key parameters:
 ```yaml
 path_to_repo: "{path-to}/hdxrate-pipeline"
-path_to_filtered_data: "{path-to}/{library}/{date_ph6_data}_{date_ph9_data}_po_results.json"
+path_to_filtered_data: "{path-to}/{library}/consolidated_po_results.json"
 library: "{library-name}"  # Must match exactly in consolidated results
 output_dirpath: "{date_ph6_data}_{date_ph9_data}_rate_fit_output"
-low_ph_library_info: "{path-to}/{library_name}/{date_ph6_data}_{library_name}_pH6/mhdx-pipeline/resources/7_idotp_filter/checked_library_info.json"
-high_ph_library_info: "{path-to}/{library_name}/{date_ph9_data}_{library_name}_pH9/mhdx-pipeline/resources/7_idotp_filter/checked_library_info.json"
+low_ph_library_info: "{path-to}/{library_name}/{date_ph6_data}_{library_name}_pH6/mhdx_pipeline/resources/7_idotp_filter/checked_library_info.json"
+high_ph_library_info: "{path-to}/{library_name}/{date_ph9_data}_{library_name}_pH9/mhdx_pipeline/resources/7_idotp_filter/checked_library_info.json"
 ```
 
 ### **2. Run the Snakemake Workflow**
@@ -69,19 +68,24 @@ high_ph_library_info: "{path-to}/{library_name}/{date_ph9_data}_{library_name}_p
 snakemake -s {path-to}/hdxrate_pipeline/snakefiles/1_Snakefile_twopHs_bx -j 1000 --keep-going \
     --cluster "sbatch -A p31346 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
 ```
-#### **Step 2: Rate Fitting**
+#### **Step 2: Rate Fitting and dG calculation**
+
+###### No matches (only pH6 or pH9 data)
+
 ```bash
 snakemake -s {path-to}/hxrate_pipeline/snakefiles/2_Snakefile_twopHs_nomatches -j 1000 --keep-going \
     --cluster "sbatch -A p31346 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
 ```
-#### **Step 3: Delta G Calculation**
+
+###### Matches (combine pH6 or pH9 data)
+
 ```bash
 snakemake -s {path-to}/hxrate_pipeline/snakefiles/3_Snakefile_twopHs_merge -j 1000 --keep-going \
     --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
 ```
 **Note:** If using only pH6 data, replace `twopHs` with `singlepH` in the Snakefile names. Customize `--cluster` specifications for your cluster, or omit in case you are using a local computer
 
-#### **Step 4: Consolidate Results**
+#### **Step 3: Consolidate Results**
 ```bash
 snakemake -s {path-to}/hxrate_pipeline/snakefiles/4_Snakefile_consolidate_results -j 1000 --keep-going \
     --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
