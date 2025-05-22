@@ -1,7 +1,7 @@
 # config file
 
 # path to pipeline repo
-path_to_repo: "/projects/p31346/suggie/hxrate_pipeline"
+path_to_repo: "/projects/b1107/allan/software/hxrate_pipeline"
 
 
 # PO_filtered_data
@@ -101,7 +101,7 @@ dg_calc: True
 low_pH: 6.0
 high_pH: 9.0
 min_fe: -2.0
-temp: 295
+temp: 293
 net_charge_corr: True
 
 
