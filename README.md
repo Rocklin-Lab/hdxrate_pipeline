@@ -27,7 +27,7 @@ git clone https://github.com/Rocklin-Lab/hdxrate_pipeline.git
 ```bash
 conda create -n hdxrate python=3.9 snakemake=7.26.0
 conda activate hdxrate
-python -m pip install ./hxrate-tools
+python -m pip install ./hxrate_tools
 ```
 
 ### **3. Prepare Config File**
