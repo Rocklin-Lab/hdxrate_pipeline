@@ -12,9 +12,9 @@ path_to_repo: "/projects/b1107/allan/software/hxrate_pipeline"
 # If you just have one pH condition, you can use the single pH consolidated_results.json file in
 # {path-to-hdxlim results}/resources/10_ic_time_series/consolidated_results.json as the path_to_filtered_data value
 
-path_to_filtered_data: "/scratch/ajf4103/HX_pipeline/mutants/mutants_4/consolidated_results.json"
+path_to_filtered_data: "consolidated_results.json" # concatenate pH6 and pH9 dataframes (if both available)
 
-library: "mutants04" # this name should correspond to the library value in the consolidated_results.json file
+library: "library_pHx" # this name should correspond to the library value in the consolidated_results.json file
 
 single_pH : False # if you have only one pH condition, set this to True
 ###############################################
@@ -23,11 +23,11 @@ single_pH : False # if you have only one pH condition, set this to True
 output_dirpath: "rate_fit_output"
 
 # low ph info
-low_ph_library_info: "/projects/b1107/allan/HDX_analysis/Lib15/20211225_pH6/hdx_limit-pipeline/resources/7_idotp_filter/checked_library_info.json"
+low_ph_library_info: "pH6/mhdx_pipeline/resources/7_idotp_filter/checked_library_info.json"
 lowph_protein_rt_column_name: "name_rt-group"
 
 low_ph_hxms_fpath_delim_str: "_winner_multibody.cpickle.zlib.csv"
-low_ph_hxms_fpath_dir: "/projects/b1107/allan/HDX_analysis/Lib15/20211225_pH6/hdx_limit-pipeline/resources/10_ic_time_series"
+low_ph_hxms_fpath_dir: "pH6/mhdx_pipeline/resources/resources/10_ic_time_series"
 level_to_fpaths_low_ph: 1
 lowph_hdxlim_dirstruct: True
 low_hdxlim_pathtype_str: "multibody"
@@ -41,11 +41,11 @@ low_ph_d2o_pur: 0.95
 
 
 # high ph info
-high_ph_library_info: "/projects/b1107/allan/HDX_analysis/Lib15/20211223_pH9/hdx_limit-pipeline/resources/7_idotp_filter/checked_library_info.json"
+high_ph_library_info: "pH9/mhdx_pipeline/resources/7_idotp_filter/checked_library_info.json"
 highph_protein_rt_column_name: "name_rt-group"
 
 high_ph_hxms_fpath_delim_str: "_winner_multibody.cpickle.zlib.csv"
-high_ph_hxms_fpath_dir: "/projects/b1107/allan/HDX_analysis/Lib15/20211223_pH9/hdx_limit-pipeline/resources/10_ic_time_series"
+high_ph_hxms_fpath_dir: "pH9/mhdx_pipeline/resources/resources/10_ic_time_series"
 level_to_fpaths_high_ph: 1
 highph_hdxlim_dirstruct: True
 high_hdxlim_pathtype_str: "multibody"
@@ -92,7 +92,7 @@ backexchange_up_bound: 0.45
 adjust_backexchange: True
 sample_backexchange: False
 num_chains: 4
-num_warmups: 100
+num_warmups: 500
 num_samples: 250
 num_cores: 6
 
