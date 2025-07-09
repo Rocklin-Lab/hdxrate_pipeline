@@ -14,7 +14,7 @@ path_to_repo: "/projects/b1107/allan/software/hxrate_pipeline"
 
 path_to_filtered_data: "consolidated_results.json" # concatenate pH6 and pH9 dataframes (if both available)
 
-library: "library_pHx" # this name should correspond to the library value in the consolidated_results.json file
+library: "library" # this name should correspond to the library value in the consolidated_results.json file
 
 single_pH : False # if you have only one pH condition, set this to True
 ###############################################
