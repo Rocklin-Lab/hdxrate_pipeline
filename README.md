@@ -145,3 +145,8 @@ merge_rt_window: 1.0  # Window to merge proteins with matching names in minutes
 - For troubleshooting, check Snakemake logs and intermediate outputs.
 - For questions, contact `ajrferrari@gmail.com` or open an issue in the repository.
 
+## Demo
+
+Example input files for testing the pipeline are provided [here](https://nuwildcat.sharepoint.com/:f:/r/sites/FSM-RocklinLab/Shared%20Documents/%5BPublic%5D%202025_Ferrari_mHDX_demo?csf=1&web=1&e=a1yyTv).
+
+
