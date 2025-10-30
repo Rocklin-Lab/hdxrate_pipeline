@@ -74,21 +74,21 @@ snakemake -s {path-to}/hdxrate_pipeline/snakefiles/1_Snakefile_twopHs_bx -j 1000
 
 ```bash
 snakemake -s {path-to}/hxrate_pipeline/snakefiles/2_Snakefile_twopHs_nomatches -j 1000 --keep-going \
-    --cluster "sbatch -A p31346 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
+    --cluster "sbatch -A p31346 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00 -o /dev/null -e /dev/null" --max-jobs-per-second 3
 ```
 
 ###### Matches (combine pH6 or pH9 data)
 
 ```bash
 snakemake -s {path-to}/hxrate_pipeline/snakefiles/3_Snakefile_twopHs_merge -j 1000 --keep-going \
-    --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
+    --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00 -o /dev/null -e /dev/null" --max-jobs-per-second 3
 ```
 **Note:** If using only pH6 data, replace `twopHs` with `singlepH` in the Snakefile names. Customize `--cluster` specifications for your cluster, or omit in case you are using a local computer
 
 #### **Step 3: Consolidate Results**
 ```bash
 snakemake -s {path-to}/hxrate_pipeline/snakefiles/4_Snakefile_consolidate_results -j 1000 --keep-going \
-    --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00" --max-jobs-per-second 3
+    --cluster "sbatch -A p30802 -p short -N 1 -n {resources.cpus} --mem=4GB -t 04:00:00 -o /dev/null -e /dev/null" --max-jobs-per-second 3
 ```
 
 ### **Expected final results**
